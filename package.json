@@ -1,0 +1,11 @@
+{
+  "name": "stag-hunt",
+  "version": "1.0.0",
+  "description": "Investors share startup deals, decide alone and invest directly.",
+  "license": "MIT",
+  "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3"
+  },
+  "private": true
+}

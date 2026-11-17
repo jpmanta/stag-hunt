@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><script>/* Scale the whole page to the screen, like a phone does: bigger monitors get a proportionally bigger layout. */
+(function(){var r=document.documentElement,land=location.pathname==="/";function fit(){var w=innerWidth,h=innerHeight,z=1;
+var zl=1;if(w>920){z=Math.max(.8,Math.min(2,w/1440));zl=land?Math.max(.8,Math.min(z,h/900))/z:1;}
+r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);r.style.setProperty("--landz",zl);window.__zoom=z*zl;}fit();addEventListener("resize",fit);})();</script><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 fill=%22%23FAF9F6%22 stroke=%22%2314244A%22 stroke-width=%221.6%22/%3E%3Crect x=%222%22 y=%222%22 width=%2210%22 height=%2210%22 fill=%22%2314244A%22/%3E%3Crect x=%2212%22 y=%2212%22 width=%2210%22 height=%2210%22 fill=%22%2314244A%22/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta name="theme-color" content="#FAF9F6"><meta name="apple-mobile-web-app-title" content="Stag Hunt"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Stag Hunt</title>
+<meta property="og:type" content="website"><meta property="og:site_name" content="Stag Hunt"><meta property="og:title" content="Stag Hunt"><meta property="og:description" content="Ethical capitalism in the US. Investors share the deals they want to back and invest directly, at any check size. Founders pitch once to every investor whose check fits."><meta property="og:url" content="https://staghunts.com/"><meta property="og:image" content="https://staghunts.com/og.png?v=2"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="The Stag Hunt: Alone, we catch hares. Together, we catch the stag."><meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="Ethical capitalism in the US. Investors share the deals they want to back and invest directly, at any check size. Founders pitch once to every investor whose check fits.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css?v=1796300000">
+<style>.landing main.land{zoom:var(--landz,1)}</style>
+<link rel="stylesheet" href="/home.css?v=1796300000">
+</head>
+<body class="home landing">
+<header><div class="in">
+  <a class="brand" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" fill="none" stroke="currentColor" stroke-width=".9"/><rect x="4" y="4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="12.4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/><rect x="4" y="12.4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/></svg><span class="wm">Stag <em>Hunt</em></span></a>
+  <nav class="toc"><a href="/learn/the-game/">I · The Game</a><a href="/learn/the-proof/">II · The Tipping Point</a><a href="/learn/why-groups-settle/">III · Catching the Stag</a><a href="/learn/the-group/">The Group</a><a href="/apply/">For Founders</a></nav>
+  <div class="hbtns"><a class="btn ghost sm" data-signin href="/login">Member sign in</a></div>
+</div></header>
+<main class="land">
+  <div class="lgrid">
+    <div class="ltext">
+      <p class="crest"><span>Ethical capitalism in the US</span></p>
+      <h1>The Stag Hunt</h1>
+      <p class="syn"><span>Alone, we catch hares.</span> <span class="two">Together, we catch <em>the stag.</em></span></p>
+      <p class="syn2">Investors share startup deals.<br>Founders raise their round.</p>
+      <div class="doors">
+        <a class="door" href="/learn/the-group/"><span class="k">For investors</span><span class="t">Get the deals you want. Any check size, no fees.</span><span class="go">How to join</span></a>
+        <a class="door" href="/apply/"><span class="k">For founders</span><span class="t">Pitch once to every investor whose check fits.</span><span class="go">Apply</span></a>
+      </div>
+    </div>
+    <div class="board">
+      <div class="frame"><canvas id="hunt-canvas" aria-label="Animation: two hunters on a checkerboard chase a stag or hares" role="img"></canvas></div>
+      <div class="bprog" aria-hidden="true"><i><b></b></i><i><b></b></i><i><b></b></i></div>
+      <div class="under">
+        <div class="cap"><div class="k" id="cap-tag"></div><div class="t" id="cap-title"></div><div class="d" id="cap-desc"></div></div>
+        <div class="mini" aria-label="Payoffs: A's food, B's food">
+          <span class="ax-b">B hunts</span>
+          <span class="mh h1">Stag</span><span class="mh h2">Hare</span>
+          <span class="ax-a">A hunts</span>
+          <span class="mr r1">Stag</span><div class="c" data-k="ss">4<i>,</i> 4</div><div class="c" data-k="sh">0<i>,</i> 1</div>
+          <span class="mr r2">Hare</span><div class="c" data-k="hs">1<i>,</i> 0</div><div class="c" data-k="hh">1<i>,</i> 1</div>
+          
+        </div>
+      </div>
+      <div class="controls"><button id="play">Pause</button><button id="yourturn" class="yt">Your turn</button></div>
+      <div class="controls playbar" hidden><button class="pick" data-choice="S">Hunt the stag</button><button class="pick" data-choice="H">Take a hare</button><button id="backtofilm">Back to the film</button></div>
+    </div>
+  </div>
+  <p class="landfine">Not a fund, a broker or investment advice · <a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a> · <a href="/contact/">Contact</a></p>
+</main>
+
+<script>(function(){const set=(on)=>document.querySelectorAll("[data-signin]").forEach(a=>{a.textContent=on?"Open Stag Hunt":"Member sign in";a.href=on?"/app":"/login";});
+let k;try{k=localStorage.getItem("sh_in")}catch(e){} if(k==="1")set(true);
+fetch("/api/me").then(r=>{set(r.ok);try{r.ok?localStorage.setItem("sh_in","1"):localStorage.removeItem("sh_in")}catch(e){}}).catch(()=>{});})();</script>
+<script src="/home.js?v=1795900000"></script>
+</body>
+</html>

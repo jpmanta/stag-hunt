@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><script>/* Scale the whole page to the screen, like a phone does: bigger monitors get a proportionally bigger layout. */
+(function(){var r=document.documentElement,land=location.pathname==="/";function fit(){var w=innerWidth,h=innerHeight,z=1;
+if(w>920){z=w/1440;if(land)z=Math.min(z,h/900);z=Math.max(.8,Math.min(2,z));}
+r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addEventListener("resize",fit);})();</script><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 fill=%22%23FAF9F6%22 stroke=%22%2314244A%22 stroke-width=%221.6%22/%3E%3Crect x=%222%22 y=%222%22 width=%2210%22 height=%2210%22 fill=%22%2314244A%22/%3E%3Crect x=%2212%22 y=%2212%22 width=%2210%22 height=%2210%22 fill=%22%2314244A%22/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta name="theme-color" content="#FAF9F6"><meta name="apple-mobile-web-app-title" content="Stag Hunt"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Catching the Stag · Stag Hunt</title>
+<meta property="og:type" content="website"><meta property="og:site_name" content="Stag Hunt"><meta property="og:title" content="Catching the Stag · Stag Hunt"><meta property="og:description" content="Safe versus better, why bigger hunts need more trust, and four ways to win anyway."><meta property="og:url" content="https://staghunts.com/learn/why-groups-settle/"><meta property="og:image" content="https://staghunts.com/og.png?v=2"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="The Stag Hunt: Alone, we catch hares. Together, we catch the stag."><meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="Safe versus better, why bigger hunts need more trust, and four ways to win anyway.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css?v=1796300000">
+<link rel="stylesheet" href="/home.css?v=1796300000">
+</head>
+<body class="home learnpage">
+<header><div class="in">
+  <a class="brand" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" fill="none" stroke="currentColor" stroke-width=".9"/><rect x="4" y="4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="12.4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/><rect x="4" y="12.4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/></svg><span class="wm">Stag <em>Hunt</em></span></a>
+  <nav class="toc"><a href="/learn/the-game/">I · The Game</a><a href="/learn/the-proof/">II · The Tipping Point</a><a href="/learn/why-groups-settle/" class="on">III · Catching the Stag</a><a href="/learn/the-group/">The Group</a><a href="/apply/">For Founders</a></nav>
+  <div class="hbtns"><a class="btn ghost sm" data-signin href="/login">Member sign in</a></div>
+</div></header>
+<main class="wrap narrow">
+  <p class="crest"><span>Chapter III</span></p><h1 class="learn-h1">Catching the Stag</h1>
+  <article class="article chapter"><section class="sec">
+    <h2>Why groups settle for hare</h2>
+    <div class="tool compact">
+  <div class="slider"><label for="sl-S">Half a stag</label><input id="sl-S" type="range" min="0" max="10" step="1" value="4"><output id="o-S">4</output></div>
+  <div class="slider"><label for="sl-H">A hare</label><input id="sl-H" type="range" min="0" max="10" step="1" value="1"><output id="o-H">1</output></div>
+  <div class="slider"><label for="sl-L">Stag alone</label><input id="sl-L" type="range" min="0" max="10" step="1" value="0"><output id="o-L">0</output></div>
+  <div class="row between"><div class="warn" id="lab-warn"></div><button class="btn ghost sm" id="reset" type="button">Reset</button></div></div>
+    <p>All on the stag is better. All on hares is safer. Which holds tighter? Count what one hunter loses by leaving.</p>
+    <table class="tbl"><thead><tr><th>If everyone is</th><th>A hunter who leaves loses</th></tr></thead><tbody>
+      <tr><td>Taking hares</td><td><span data-bind="lossHH">1</span></td></tr>
+      <tr><td>Hunting the stag</td><td><span data-bind="lossSS">3</span></td></tr>
+    </tbody></table>
+    <p>The bigger the loss, the harder the group is to break. Here, <b id="rd-verdict"></b>.</p>
+  </section><section class="sec">
+    <h2>More hunters, more trust needed</h2>
+    <p>Now the stag needs everyone. Two reliable people will usually both show. Ten reliable people will often be missing one.</p>
+    <div class="figure"><svg id="chart-n" role="img" aria-label="How reliable each member must be as the group grows"></svg>
+      <div class="figcap">How reliable each member must be: <span data-bind="pspct">25%</span> with two, <span data-bind="n5">71%</span> with five, <span data-bind="n10">86%</span> with ten, <span data-bind="n15">91%</span> with fifteen.</div></div>
+    <p>Every hunter a deal depends on is one more who might not show.</p>
+    <p class="kicker">The fix is a hunt where no deal needs everyone.</p>
+  </section><section class="sec">
+    <h2>Four ways to catch the stag</h2>
+    <p><b>The obstacle is not greed. It is doubt.</b> Remove the doubt and the stag falls.</p>
+    <table class="tbl ways"><thead><tr><th>The lever</th><th>Why it works</th><th>In Stag Hunt</th></tr></thead><tbody>
+      <tr><td>A bigger stag</td><td>Bigger prize, less trust needed</td><td>Every member's deals</td></tr>
+      <tr><td>A softer fall</td><td>Less to lose, less to fear</td><td>No fund, no fees</td></tr>
+      <tr><td>Fewer hunters</td><td>Fewer who might not show</td><td>No one waits on anyone</td></tr>
+      <tr><td>Trust you can see</td><td>What is seen becomes the norm</td><td>Every call on the record</td></tr>
+    </tbody></table>
+    <p>The prize is real. In seed investing, a few deals make nearly all the money. The more good deals you see, the better your odds of one.</p>
+    <div class="readout stats"><div class="r"><b>4%</b>of 21,000 US seed rounds returned 10x or more</div><div class="r"><b>39%</b>odds of one in your own 12 deals</div><div class="r"><b>99%</b>odds of one in 120 deals from ten members</div></div>
+    <p class="kicker">Alone, we catch hares. Together, we catch the stag.</p>
+  </section></article>
+  <nav class="pager"><a href="/learn/the-proof/"><span>← Chapter II</span>The Tipping Point</a><a class="nx" href="/learn/the-group/"><span>Next →</span>The Group</a></nav>
+</main>
+<footer class="forestfoot"><div class="fbar"><div class="wrap">Stag Hunt is a new way to invest: investors share every good early-stage deal they find, and each decides alone. It is not a fund, broker-dealer, funding portal or investment adviser, and it does not offer, sell or recommend securities. It never pools, holds or moves money. Neither Stag Hunt nor its organizer or members take fees or compensation from any company discussed. Members' calls and comments are opinions, not investment advice. Every investment is made directly between a member and a company, on that company's own terms and documents. Startup investing is illiquid and high-risk; most startups fail. Invest only what you can afford to lose entirely.<span class="flinks"><a href="/apply/">For founders</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/contact/">Contact</a></span></div></div></footer>
+<script>(function(){const set=(on)=>document.querySelectorAll("[data-signin]").forEach(a=>{a.textContent=on?"Open Stag Hunt":"Member sign in";a.href=on?"/app":"/login";});
+let k;try{k=localStorage.getItem("sh_in")}catch(e){} if(k==="1")set(true);
+fetch("/api/me").then(r=>{set(r.ok);try{r.ok?localStorage.setItem("sh_in","1"):localStorage.removeItem("sh_in")}catch(e){}}).catch(()=>{});})();</script>
+<script src="/home.js?v=1795900000"></script>
+<script src="/quotes.js?v=1796110000" defer></script>
+</body>
+</html>

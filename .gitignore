@@ -1,0 +1,25 @@
+.cf-deploy.env
+deploy.command
+
+# Secrets: never commit
+*.env
+*key*.txt
+client_secret*.json
+
+# The owner's own working notes for Claude Code: deploy steps and local folders
+CLAUDE.md
+
+# Generated / local only
+node_modules/
+.wrangler/
+.dev.vars
+.DS_Store
+.claude-tmp/
+backups/
+*.bak-*
+.claude-apply-before.html
+
+# Loose personal files (not part of the site)
+/Favorite Photo.jpg
+/IMG_6475.jpeg
+/Stag Hunt.pdf

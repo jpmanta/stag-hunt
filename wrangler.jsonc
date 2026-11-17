@@ -1,0 +1,52 @@
+{
+  "name": "stag-hunt",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "staghunt-auth",
+      "database_id": "127c2688-b764-4aa3-9204-99131cff34c3",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Real-time chat and live updates
+  "durable_objects": {
+    "bindings": [{ "name": "HUB", "class_name": "Hub" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
+  // Cloudflare Email Service (sender must be on the onboarded domain)
+  // Workers AI: transcribes recorded founder calls and drafts the deal
+  "ai": { "binding": "AI" },
+  "send_email": [
+    { "name": "EMAIL", "allowed_sender_addresses": ["login@staghunts.com"] }
+  ],
+  "vars": {
+    "APP_NAME": "Stag Hunt",
+    "MAIL_FROM": "login@staghunts.com",
+    "GOOGLE_CLIENT_ID": "795415665596-dom1la3kfqa6o9blhumhmlnl0qgeujmp.apps.googleusercontent.com",
+    // The AI pitch interviewer on /apply (scripts/interview-agent.mjs). The key is the secret ELEVENLABS_API_KEY.
+    // Monthly spending cap in dollars; past it, founders see only the typed form. Raise it to allow more interviews.
+    "INTERVIEW_AGENT_ID": "agent_4701m7gzwrnzfyvr786mc8m2xtdj",
+    "INTERVIEW_BUDGET_USD": "100",
+    // The iPhone app ("Stag Hunt iPhone App" folder). Team ID from developer.apple.com > Membership.
+    "APPLE_TEAM_ID": "",
+    "APPLE_BUNDLE_ID": "com.staghunts.app",
+    // Apple's app reviewer signs in here (read-only observer) with the fixed code in the secret REVIEW_CODE.
+    "REVIEW_EMAIL": "review@staghunts.com"
+  },
+  "routes": [
+    { "pattern": "staghunts.com", "custom_domain": true },
+    { "pattern": "www.staghunts.com", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  // Weekly digest (Mondays ~9am ET) and monthly backup (1st of the month)
+  "triggers": { "crons": ["7 13 * * 1", "17 14 1 * *"] },
+  "observability": { "enabled": true }
+}
