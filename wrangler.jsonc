@@ -36,7 +36,7 @@
     "INTERVIEW_AGENT_ID": "agent_4701m7gzwrnzfyvr786mc8m2xtdj",
     "INTERVIEW_BUDGET_USD": "100",
     // The iPhone app ("Stag Hunt iPhone App" folder). Team ID from developer.apple.com > Membership.
-    "APPLE_TEAM_ID": "",
+    "APPLE_TEAM_ID": "8S7Q2XFHJ2",
     "APPLE_BUNDLE_ID": "com.staghunts.app",
     // Apple's app reviewer signs in here (read-only observer) with the fixed code in the secret REVIEW_CODE.
     "REVIEW_EMAIL": "review@staghunts.com"
