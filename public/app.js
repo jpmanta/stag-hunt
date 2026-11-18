@@ -1078,6 +1078,7 @@ async function shareTrackPanel() {
     ${link ? `<div class="keyline"><code>${esc(link)}</code><button class="link small" type="button" id="trackcopy">Copy</button></div>` : ""}
     <div class="row">${link ? `<a class="btn ghost sm" href="${esc(link)}" target="_blank" rel="noopener">See what they see</a><button class="link small" type="button" id="tracknew">New link</button><button class="link small" type="button" id="trackoff">Turn off</button>`
       : '<button class="btn sm" type="button" id="trackon">Make a link</button>'}</div>
+    <div class="small muted">Every call you make is sealed into a chained record that nobody, Stag Hunt included, can change without it showing. <a href="/api/me/ledger" download>Download your record</a> and check it any time with the <a href="https://github.com/jpmanta/stag-hunt/blob/main/scripts/verify-record.mjs" target="_blank" rel="noopener">public checker</a>.</div>
   </div>`;
   const on = async () => { await api("/api/me/record-link", {}); shareTrackPanel(); };
   if ($("#trackon")) $("#trackon").onclick = on;

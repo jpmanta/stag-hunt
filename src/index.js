@@ -42,6 +42,7 @@ export default {
     ctx.waitUntil(cleanup(env));
     if (event.cron === "7 13 * * 1") ctx.waitUntil(sendWeeklyDigest(env));
     if (event.cron === "17 14 1 * *") ctx.waitUntil(sendMonthlyBackup(env));
+    if (event.cron === "23 4 * * *") ctx.waitUntil(sealLedger(env));
   },
 };
 
@@ -101,6 +102,7 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && p === "/api/auth/logout") return logout(request, env);
   if (m === "POST" && p === "/api/contact") return contactUs(request, env);
   if (m === "POST" && p === "/api/apply") return applyFounder(request, env);
+  if (m === "GET" && p === "/api/ledger/fingerprints") return ledgerFingerprints(env);
   if ((mt = p.match(/^\/api\/pitch\/([A-Za-z0-9_-]{40,60})(?:\/(start|done|seg\/(\d{1,3})))?$/))) {
     if (m === "GET" && !mt[2]) return getPitch(env, mt[1]);
     if (m === "POST" && mt[2] === "start") return startPitch(request, env, mt[1]);
@@ -143,6 +145,7 @@ async function route(request, env, ctx, url) {
   if (m === "GET" && p === "/api/me/history") return myHistory(env, me);
   if (m === "GET" && p === "/api/me/api-key") return json({ key: await env.DB.prepare("SELECT last4, created_at, last_used_at FROM api_keys WHERE user_id = ?").bind(me.id).first() });
   if (m === "POST" && p === "/api/me/api-key") return makeApiKey(env, me);
+  if (m === "GET" && p === "/api/me/ledger") return myLedger(env, me);
   if (m === "GET" && p === "/api/me/record-link") return json({ link: me.record_link ? trackLink(me.record_link) : null });
   if (m === "POST" && p === "/api/me/record-link") {
     const t = randomToken();
@@ -1007,6 +1010,7 @@ async function createDeal(request, env, me, ctx) {
     insertScore(env, id, me.id, s, t),
     ...(appId ? [env.DB.prepare("UPDATE applications SET status = 'posted', deal_id = ? WHERE id = ?").bind(id, appId)] : []),
   ]);
+  await recordCall(env, id, me.id);
   if (fromRec) await deleteRecording(env, me, recId); // the transcript goes once the deal is posted
   const name = me.name || me.email;
   await notify(env, { type: "deal_posted", deal: { id, company: f.company, one_liner: f.one_liner, poster: name } });
@@ -1015,6 +1019,87 @@ async function createDeal(request, env, me, ctx) {
 }
 
 // Calls lock once they're in: you see everyone else's only after adding yours, so yours stays your own.
+// Framework Phase 1 (Proof): a record that proves itself (migrations/0027_ledger.sql).
+// Each entry's hash covers the entry before it, so changing any old entry breaks every hash
+// after it. Entry content stays private; only its hash is chained. A salt keeps short content
+// such as a bare "yes" from being guessed from its hash. Anyone can check a chain with
+// scripts/verify-record.mjs.
+const ZERO_HASH = "0".repeat(64);
+const hex = (a) => [...a].map((x) => x.toString(16).padStart(2, "0")).join("");
+const linkHash = (seq, prev, bodyHash) => sha256(`${seq}|${prev}|${bodyHash}`);
+
+async function appendLedger(env, kind, ref, memberId, content, at = now()) {
+  const body = JSON.stringify({ kind, ref, ...content, at, salt: hex(crypto.getRandomValues(new Uint8Array(16))) });
+  const bodyHash = await sha256(body);
+  for (let tries = 0; tries < 6; tries++) {
+    const last = await env.DB.prepare("SELECT seq, hash FROM ledger ORDER BY seq DESC LIMIT 1").first();
+    const seq = (last?.seq || 0) + 1, prev = last?.hash || ZERO_HASH;
+    try {
+      await env.DB.prepare("INSERT INTO ledger (seq, kind, ref, member_id, body, body_hash, prev, hash, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(seq, kind, ref, memberId, body, bodyHash, prev, await linkHash(seq, prev, bodyHash), at).run();
+      return true;
+    } catch (e) {
+      if (await env.DB.prepare("SELECT 1 FROM ledger WHERE ref = ?").bind(ref).first()) return false;   // already on the record
+      if (!/UNIQUE|constraint/i.test(String(e))) throw e;                                               // otherwise someone took this seq: retry
+    }
+  }
+  throw new Error("ledger busy");
+}
+// A failed append never blocks a call; the nightly job catches up anything missed.
+const safeLedger = async (f) => { try { await f(); } catch (e) { console.error("ledger", e); } };
+
+const callContent = (r) => {
+  const c = { deal: r.deal_id, member: r.member_id, yes: r.yes, why: r.why ?? null, met: r.met ?? null };
+  for (const k of SCORE_KEYS) if (r[k] != null) c[k] = r[k];
+  if (r.total != null) c.total = r.total;
+  return c;
+};
+const recordCall = (env, dealId, memberId) => safeLedger(async () => {
+  const r = await env.DB.prepare("SELECT * FROM scores WHERE deal_id = ? AND member_id = ?").bind(dealId, memberId).first();
+  if (r) await appendLedger(env, "call", `call:${dealId}:${memberId}`, memberId, callContent(r), r.updated_at);
+});
+const outcomeContent = (d) => ({ deal: d.id, outcome: d.outcome, note: d.outcome_note ?? null, by: d.outcome_by ?? null, confirmed_by: d.outcome_confirmed_by ?? null, source: d.outcome_source ?? null });
+const recordOutcome = (env, dealId) => safeLedger(async () => {
+  const d = await env.DB.prepare("SELECT id, outcome, outcome_note, outcome_at, outcome_by, outcome_confirmed_by, outcome_source FROM deals WHERE id = ?").bind(dealId).first();
+  if (d?.outcome && d.outcome_at) await appendLedger(env, "outcome", `outcome:${d.id}:${d.outcome_at}`, null, outcomeContent(d), d.outcome_at);
+});
+
+// Nightly: put anything missed on the record, oldest first, then seal the day's fingerprint.
+async function sealLedger(env) {
+  const calls = await env.DB.prepare(`SELECT * FROM scores s WHERE NOT EXISTS
+    (SELECT 1 FROM ledger l WHERE l.ref = 'call:' || s.deal_id || ':' || s.member_id) ORDER BY s.updated_at LIMIT 200`).all();
+  const outs = await env.DB.prepare(`SELECT id, outcome, outcome_note, outcome_at, outcome_by, outcome_confirmed_by, outcome_source FROM deals d
+    WHERE outcome IS NOT NULL AND outcome_at IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ledger l WHERE l.ref = 'outcome:' || d.id || ':' || d.outcome_at)
+    ORDER BY outcome_at LIMIT 50`).all();
+  const todo = [...calls.results.map((r) => ({ at: r.updated_at, go: () => appendLedger(env, "call", `call:${r.deal_id}:${r.member_id}`, r.member_id, callContent(r), r.updated_at) })),
+    ...outs.results.map((d) => ({ at: d.outcome_at, go: () => appendLedger(env, "outcome", `outcome:${d.id}:${d.outcome_at}`, null, outcomeContent(d), d.outcome_at) }))]
+    .sort((a, b) => a.at - b.at);
+  for (const t of todo) await t.go();
+  const head = await env.DB.prepare("SELECT seq, hash FROM ledger ORDER BY seq DESC LIMIT 1").first();
+  if (head) await env.DB.prepare("INSERT OR IGNORE INTO ledger_heads (day, seq, hash, at) VALUES (?, ?, ?, ?)")
+    .bind(new Date().toISOString().slice(0, 10), head.seq, head.hash, now()).run();
+  return { added: todo.length, head };
+}
+
+// Public: the chain's daily fingerprints. They reveal nothing about anyone's calls.
+async function ledgerFingerprints(env) {
+  const { results } = await env.DB.prepare("SELECT day, seq, hash FROM ledger_heads ORDER BY day").all();
+  return json({ about: "Daily fingerprints of the Stag Hunt record. See github.com/jpmanta/stag-hunt, scripts/verify-record.mjs.", fingerprints: results });
+}
+
+// Your record, provably intact: your own entries in full, plus the whole chain as hashes only.
+async function myLedger(env, me) {
+  const [chain, mine, heads] = await Promise.all([
+    env.DB.prepare("SELECT seq, body_hash, prev, hash FROM ledger ORDER BY seq").all(),
+    env.DB.prepare("SELECT seq, kind, body FROM ledger WHERE member_id = ? ORDER BY seq").bind(me.id).all(),
+    env.DB.prepare("SELECT day, seq, hash FROM ledger_heads ORDER BY day").all(),
+  ]);
+  const file = { about: "Your Stag Hunt record. Check it with scripts/verify-record.mjs from github.com/jpmanta/stag-hunt.",
+    downloaded_at: new Date().toISOString(), mine: mine.results, chain: chain.results, fingerprints: heads.results };
+  return new Response(JSON.stringify(file, null, 1), { headers: { "content-type": "application/json; charset=utf-8",
+    "content-disposition": `attachment; filename="stag-hunt-record-${new Date().toISOString().slice(0, 10)}.json"`, "cache-control": "no-store" } });
+}
+
 const insertScore = (env, dealId, memberId, s, t) => insertRow(env, "scores", { deal_id: dealId, member_id: memberId, ...s, updated_at: t });
 
 async function loadDeal(env, id) {
@@ -1083,6 +1168,7 @@ async function scoreDeal(request, env, me, id) {
     throw new HttpError(409, "locked", "You've already made your call on this deal. Calls lock once they're in, so everyone's stays their own.");
   const s = scoreFields(await readJson(request));
   await insertScore(env, id, me.id, s, now()).run();
+  await recordCall(env, id, me.id);
   await notify(env, { type: "changed", what: "deal", id });
   return json({ ok: true });
 }
@@ -1266,6 +1352,7 @@ async function setOutcome(request, env, me, id) {
   } else if (!b.outcome) {
     if (me.role !== "admin") throw new HttpError(403, "forbidden", "Only an admin can clear a confirmed outcome.");
     await env.DB.prepare(`UPDATE deals SET outcome = NULL, outcome_note = NULL, outcome_at = NULL, outcome_by = NULL, outcome_confirmed_by = NULL, outcome_source = NULL, ${clearPending} WHERE id = ?`).bind(id).run();
+    if (deal.outcome) await safeLedger(() => appendLedger(env, "outcome_cleared", `cleared:${id}:${now()}:${crypto.randomUUID()}`, null, { deal: id, by: me.id }));
   } else {
     if (!OUTCOMES.includes(b.outcome)) bad("Pick how it turned out.");
     const note = clean(b.note, 500), source = b.source ? cleanUrl(b.source) : null;
@@ -1274,6 +1361,7 @@ async function setOutcome(request, env, me, id) {
     else if (deal.pending_outcome === b.outcome && deal.pending_by && deal.pending_by !== me.id) await settle(b.outcome, deal.pending_note || note, deal.pending_by, me.id, null);
     else await env.DB.prepare("UPDATE deals SET pending_outcome = ?, pending_note = ?, pending_by = ?, pending_at = ? WHERE id = ?").bind(b.outcome, note, me.id, now(), id).run();
   }
+  await recordOutcome(env, id);
   await notify(env, { type: "changed", what: "deal", id });
   await notify(env, { type: "changed", what: "members" });
   return json({ ok: true });
@@ -1998,6 +2086,8 @@ async function digestMail(env, m, newDeals, contributors, inbound, force = false
   const portfolio = portfolioLines(checks);
   const week = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" });
   const quiet = !mine.length && !toScore.length && !inbound && !ours.length;
+  const fp = await env.DB.prepare("SELECT day, hash FROM ledger_heads ORDER BY day DESC LIMIT 1").first().catch(() => null);
+  const fpLine = fp ? `Record fingerprint for ${fp.day}: ${fp.hash}. Keep this email: it proves no call made before that day can be changed later.` : "";
   const first = firstName(m), hi = first ? `${first}, ` : "";
   const madeCalls = yourCalls.n ? `You made ${plural(yourCalls.n, "call")} this past week.` : "";
   // Your record in one line, so it never drifts out of mind
@@ -2024,7 +2114,7 @@ async function digestMail(env, m, newDeals, contributors, inbound, force = false
     recordLine ? `${recordLine} https://staghunts.com/app#/history` : "",
     portfolio ? `Your portfolio: ${portfolio.headline}\n${portfolio.lines.join("\n")}` : "",
     `Deals brought this month: ${contributors.map((c) => `${c.name} (${c.n})`).join(", ") || "none yet"}`,
-    "https://staghunts.com/app"].filter(Boolean).join("\n\n");
+    fpLine, "https://staghunts.com/app"].filter(Boolean).join("\n\n");
   return [subjectCased, text,
     mailLayout(env.APP_NAME,
       mailTitle(first ? `${escHtml(first)}, here is your week` : "Your week in Stag Hunt") + mailKicker(`Week of ${week}`) +
@@ -2037,7 +2127,8 @@ async function digestMail(env, m, newDeals, contributors, inbound, force = false
       section("Deals brought this month", mailNote(hunters)) +
       (portfolio ? section("Your portfolio", mailPara(`<b>${escHtml(portfolio.headline)}</b>`, 6) + portfolio.lines.map((l) => mailNote(escHtml(l), 4)).join("")) : "") +
       (recordLine ? section("Your record", mailNote(`${escHtml(recordLine)} <a href="https://staghunts.com/app#/history" style="color:${M_NAVY}">See it</a>`)) : "") +
-      mailBtn("https://staghunts.com/app", "Open Stag Hunt"))];
+      mailBtn("https://staghunts.com/app", "Open Stag Hunt") +
+      (fp ? mailNote(`Record fingerprint for ${fp.day}: <span style="font-family:Menlo,monospace;word-break:break-all">${fp.hash}</span>. Keep this email: it proves no call made before that day can be changed later.`) : ""))];
 }
 
 // Your record: every deal you brought, called or backed, for your eyes only
