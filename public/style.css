@@ -438,7 +438,7 @@ body.observer #updform,body.observer #outcomeform,body.observer #nomform,body.ob
 .addgo{display:flex;align-items:center;gap:14px;padding-bottom:2px}
 @media(max-width:900px){.addgrid{grid-template-columns:1fr 1fr}.addgo{grid-column:1/-1;margin-top:10px}}
 .mlist{border:1px solid var(--line);border-radius:10px;background:var(--panel);max-height:min(62vh,640px);overflow-y:auto;overscroll-behavior:contain}
-.mhead,.mrow{display:grid;grid-template-columns:minmax(220px,2fr) 190px 110px minmax(200px,1.6fr);gap:14px;align-items:center;padding:12px 18px}
+.mhead,.mrow{display:grid;grid-template-columns:minmax(220px,2fr) 110px minmax(200px,1.6fr);gap:14px;align-items:center;padding:12px 18px}
 .mhead{position:sticky;top:0;z-index:2;background:var(--sunk);font:600 10.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
 .mrow{border-bottom:1px solid var(--line)}.mrow:last-of-type{border-bottom:0}
 .mrow:hover{background:color-mix(in srgb,var(--sunk) 45%,transparent)}

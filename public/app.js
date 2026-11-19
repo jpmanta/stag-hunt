@@ -21,11 +21,7 @@ const avatar = (name, id, size = "") => {
   const ph = id && state.photos && state.photos[id];
   return `<span class="avatar ${size}">${ph ? `<img src="/api/photo/${esc(id)}?v=${ph}" alt="">` : esc(initials(name))}${id && !size ? `<i class="dot${state.online.has(id) ? " on" : ""}" data-dot="${esc(id)}"></i>` : ""}</span>`;
 };
-const roman = (n) => { let r = "", v = n || 0; for (const [k, x] of [[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]]) while (v >= k) { r += x; v -= k; } return r; };
-const cohortName = (n) => { const c = (state.cohorts || []).find((x) => x.number === n); return c && c.name ? c.name : `Group ${roman(n)}`; };
-const cohortMark = (n) => (n ? `<span class="cohort" title="${esc(cohortName(n))}">${roman(n)}</span>` : "");
 async function loadPhotos() {
-  try { state.cohorts = (await api("/api/cohorts")).cohorts; } catch {}
   try { const { members } = await api("/api/members"); state.photos = Object.fromEntries(members.filter((m) => m.photo_at).map((m) => [m.id, m.photo_at])); } catch {}
 }
 const fmt1 = (v) => (v == null ? "–" : (Math.round(v * 10) / 10).toString());
@@ -879,20 +875,16 @@ document.addEventListener("focusout", () => { if (pendingRefresh && !$$("textare
 async function viewMembers(_, seq) {
   const { members: all, observers = [] } = await api("/api/members");
   if (seq !== renderSeq) return;
-  const used = [...new Set(all.map((m) => m.cohort).filter(Boolean))].sort((a, b) => a - b);
-  const pickC = Number(query().get("cohort")) || 0;
-  const members = pickC ? all.filter((m) => m.cohort === pickC) : all;
-  const filter = used.length > 1 ? `<div class="cfilter"><a href="#/members" class="${pickC ? "" : "on"}">All</a>${used.map((n) => `<a href="#/members?cohort=${n}" class="${pickC === n ? "on" : ""}">${esc(cohortName(n))}</a>`).join("")}</div>` : "";
+  const members = all;
   $("#view").innerHTML = `
     <div class="pagehead"><div><h1>Members</h1></div>
       <a class="btn ghost" href="#/nominations">Nominate someone</a></div>
-    ${filter}
     <div class="tablewrap"><table class="mtable"><thead><tr><th>Member</th><th class="num" title="Deals brought to the group">Deals</th><th class="num" title="Share of other members' deals at their check size they've said yes or no to">Calls made</th><th class="num" title="Promises they followed through on">Promises kept</th><th class="num" title="A yes on a company that did well, or a no on one that didn't">Good calls</th><th class="num">Invested</th></tr></thead><tbody>
     ${members.map((m) => {
       const called = m.scores_possible ? `${Math.min(100, Math.round((m.scores_on_others / m.scores_possible) * 100))}%` : "–";
       // On a phone the numbers sit under the name instead of in columns
       const line = [`${m.deals_posted} deal${m.deals_posted === 1 ? "" : "s"}`, m.scores_possible && `${called} called`, m.calls && `${m.calls_right} of ${m.calls} good calls`, m.invested_cents && `${usd(m.invested_cents)} in`].filter(Boolean).join(" · ");
-      return `<tr class="rowlink" data-go="#/members/${esc(m.id)}"><td><a class="row" style="flex-wrap:nowrap;text-decoration:none;color:inherit" href="#/members/${esc(m.id)}">${avatar(m.name, m.id)}<div><div class="co">${esc(m.name)} ${cohortMark(m.cohort)} ${m.role === "admin" ? '<span class="pill">Admin</span>' : ""}</div><div class="sub">${esc(m.headline || m.email)}</div><div class="sub mline">${line}</div></div></a></td>
+      return `<tr class="rowlink" data-go="#/members/${esc(m.id)}"><td><a class="row" style="flex-wrap:nowrap;text-decoration:none;color:inherit" href="#/members/${esc(m.id)}">${avatar(m.name, m.id)}<div><div class="co">${esc(m.name)} ${m.role === "admin" ? '<span class="pill">Admin</span>' : ""}</div><div class="sub">${esc(m.headline || m.email)}</div><div class="sub mline">${line}</div></div></a></td>
         <td class="num">${m.deals_posted}${m.deals_30d ? ` <span class="faint small">+${m.deals_30d}</span>` : ""}</td>
         <td class="num">${called}</td>
         <td class="num">${m.pledges_locked ? `${m.pledges_kept} of ${m.pledges_locked}` : "–"}</td>
@@ -929,9 +921,9 @@ async function viewMember(id) {
   $("#view").innerHTML = `
     <div class="profilehead">
       ${avatar(m.name, m.id, "xl")}
-      <div class="grow"><h1>${esc(m.name)} ${cohortMark(m.cohort)}</h1>
+      <div class="grow"><h1>${esc(m.name)}</h1>
         ${m.headline ? `<div class="headline">${esc(m.headline)}</div>` : ""}
-        <div class="small muted">${[m.cohort ? cohortName(m.cohort) : "", m.location, `Member since ${date(m.created_at)}`].filter(Boolean).map(esc).join(" · ")}</div>
+        <div class="small muted">${[m.location, `Member since ${date(m.created_at)}`].filter(Boolean).map(esc).join(" · ")}</div>
         ${links.length ? `<div class="proflinks">${links.map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${l}</a>`).join("")}</div>` : ""}</div>
       ${mine ? '<a class="btn ghost sm" href="#/profile">Edit profile</a>' : `<a class="btn ghost sm" href="mailto:${esc(m.email)}">Email</a>`}
     </div>
@@ -1253,23 +1245,13 @@ async function viewNominations(_, seq) {
 // ------------------------------------------------------------ admin
 async function viewAdmin(_, seq) {
   if (state.me.role !== "admin") throw new Error("Admins only.");
-  const [{ members }, { cohorts }] = await Promise.all([api("/api/members"), api("/api/cohorts")]);
+  const { members } = await api("/api/members");
   if (seq !== renderSeq) return;
-  state.cohorts = cohorts;
-  const open = cohorts.find((c) => c.status === "open");
-  const next = (cohorts.length ? cohorts[cohorts.length - 1].number : 0) + 1;
-  const cohortOpts = (sel) => cohorts.map((c) => `<option value="${c.number}" ${c.number === sel ? "selected" : ""}>${esc(cohortName(c.number))}</option>`).join("");
   $("#view").innerHTML = `
     <div class="pagehead"><div><h1>Manage members</h1></div></div>
     <div class="panel cohortpanel"><div class="pb">
       <div class="ctitle">One network, no cap</div>
-      <div class="small muted" style="margin-top:4px">Everyone you approve joins. Check sizes decide who sees which deal. Groups are just labels, like a founding group.</div>
-      ${open ? `<div class="row between" style="align-items:center;margin-top:14px"><div>New members are labeled ${cohortMark(open.number)} <b>${esc(cohortName(open.number))}</b> · ${open.members} so far</div>
-          <button class="btn ghost sm" id="closec">Stop labeling</button></div>` : ""}
-      <form id="openc" class="row" style="gap:10px;margin-top:16px;flex-wrap:wrap;align-items:flex-end">
-        <div><label style="margin-top:0">Start a new label, Group ${roman(next)}</label><input name="name" maxlength="60" placeholder="Name (optional)" style="width:220px"></div>
-        <button class="btn sm" type="submit">Start it</button><span class="msg err"></span></form>
-      ${cohorts.length > 1 || (cohorts.length && !open) ? `<div class="chist">${cohorts.map((c) => `<span>${cohortMark(c.number)} ${esc(cohortName(c.number))} · ${c.members}${c.status === "open" ? " · current" : ""}</span>`).join("")}</div>` : ""}
+      <div class="small muted" style="margin-top:4px">Everyone you approve joins. Check sizes decide who sees which deal, and hunts are how members group themselves.</div>
     </div></div>
     <div class="adminhead row between">
       <h3>Members <span class="faint small">${members.length}</span></h3>
@@ -1281,13 +1263,12 @@ async function viewAdmin(_, seq) {
         <div><label>Role</label><select name="role"><option value="member">Member</option><option value="observer">Observer (read-only)</option><option value="admin">Admin</option></select></div>
         <div class="addgo"><label class="check" style="margin:0"><input type="checkbox" name="send_invite" checked>Email an invite</label><button class="btn sm" type="submit">Add</button></div>
         <div class="msg err" style="grid-column:1/-1"></div></form>
-      <p class="small muted" style="margin:6px 0 0">${open ? `New members are labeled ${esc(cohortName(open.number))}. ` : ""}Removing someone signs them out everywhere; their past deals and calls stay.</p>
+      <p class="small muted" style="margin:6px 0 0">Removing someone signs them out everywhere; their past deals and calls stay.</p>
     </div></div>
     <div class="mlist">
-      <div class="mhead"><span>Member</span><span>Group</span><span>Role</span><span></span></div>
+      <div class="mhead"><span>Member</span><span>Role</span><span></span></div>
       ${members.map((m) => `<div class="mrow" data-q="${esc((m.name + " " + m.email).toLowerCase())}">
         <div class="mwho">${avatar(m.name, m.id)}<div><div class="co">${esc(m.name)}</div><div class="sub">${esc(m.email)}</div><div class="sub faint">Joined ${date(m.created_at)}</div></div></div>
-        <div>${m.role === "observer" ? '<span class="faint small">None</span>' : `<select class="csel" data-cohort="${m.id}">${m.cohort ? "" : '<option value="">None</option>'}${cohortOpts(m.cohort)}</select>`}</div>
         <div>${m.role === "admin" ? '<span class="pill">Admin</span>' : m.role === "observer" ? '<span class="pill">Observer</span>' : '<span class="small">Member</span>'}</div>
         <div class="macts2">${m.id === state.me.id ? '<span class="faint small">You</span>' : `
           ${m.role === "observer" ? `<button class="link small" data-role="${m.id}" data-to="member">Make member</button>`
@@ -1302,14 +1283,9 @@ async function viewAdmin(_, seq) {
   $("#addtoggle").onclick = () => { const p = $("#addpanel"); p.hidden = !p.hidden; if (!p.hidden) p.querySelector("input").focus(); };
   $("#msearch").oninput = (e) => { const q = e.target.value.trim().toLowerCase(); let n = 0;
     $$(".mrow").forEach((r) => { const hit = !q || r.dataset.q.includes(q); r.hidden = !hit; n += hit; }); $("#mnone").hidden = n > 0; };
-  const oc = $("#openc");
-  oc.addEventListener("submit", async (e) => { e.preventDefault(); if (open && !await ask(`Close ${cohortName(open.number)} and open Group ${roman(next)}?`)) return;
-    submitting(oc, async () => { await api("/api/admin/cohorts", formData(oc)); toast(`New members are now labeled Group ${roman(next)}`); }); });
-  $("#closec")?.addEventListener("click", async () => { if (await ask("Stop giving new members this label? Anyone you approve still joins.")) await api(`/api/admin/cohorts/${open.number}`, { status: "closed" }); });
-  $$("[data-cohort]").forEach((sel) => (sel.onchange = async () => { await api("/api/admin/members/" + sel.dataset.cohort, { cohort: sel.value }); toast("Group updated"); }));
   $$("[data-remove]").forEach((b) => (b.onclick = async () => { if (await ask(`Remove ${b.dataset.name} from Stag Hunt? They'll be signed out immediately.`)) await api("/api/admin/members/" + b.dataset.remove, { status: "removed" }); }));
   $$("[data-role]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.to === "observer" && !await ask("Make them an observer? They'll leave their group, be hidden from the group (listed only as an observer), and won't be able to post or make calls.")) return;
+    if (b.dataset.to === "observer" && !await ask("Make them an observer? They'll be listed only as an observer and won't be able to post or make calls.")) return;
     await api("/api/admin/members/" + b.dataset.role, { role: b.dataset.to }); toast("Role updated");
   }));
   live(async () => { await loadPhotos(); router(); }, (ev) => ev.what === "members");

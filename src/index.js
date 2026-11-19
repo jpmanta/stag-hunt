@@ -174,7 +174,6 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && (mt = p.match(/^\/api\/passkeys\/([A-Za-z0-9_-]{8,512})\/delete$/))) return deletePasskey(env, me, mt[1]);
   if (m === "GET" && p === "/api/overview") return overview(env, me);
   if (m === "GET" && p === "/api/members") return listMembers(env, me);
-  if (m === "GET" && p === "/api/cohorts") return listCohorts(env);
   if (m === "GET" && (mt = p.match(/^\/api\/members\/([0-9a-z-]{8,40})$/))) return getMember(env, mt[1], me);
   if (m === "GET" && (mt = p.match(/^\/api\/photo\/([0-9a-z-]{8,40})$/))) return getPhoto(env, mt[1]);
   if (m === "POST" && p === "/api/me/photo") return updatePhoto(request, env, me);
@@ -219,8 +218,6 @@ async function route(request, env, ctx, url) {
   if (p.startsWith("/api/admin/")) {
     if (me.role !== "admin") throw new HttpError(403, "forbidden", "Admins only.");
     if (m === "POST" && p === "/api/admin/members") return addMember(request, env, me);
-    if (m === "POST" && p === "/api/admin/cohorts") return openCohort(request, env);
-    if (m === "POST" && (mt = p.match(/^\/api\/admin\/cohorts\/(\d{1,3})$/))) return editCohort(request, env, Number(mt[1]));
     if (m === "POST" && (mt = p.match(/^\/api\/admin\/members\/([0-9a-f-]{32,36})$/))) return editMember(request, env, me, mt[1]);
     if (m === "POST" && (mt = p.match(/^\/api\/admin\/nominations\/([0-9a-f-]{36})$/))) return decideNomination(request, env, me, mt[1]);
     if (m === "POST" && (mt = p.match(/^\/api\/admin\/requests\/([0-9a-f-]{36})$/))) return decideRequest(request, env, me, mt[1]);
@@ -594,9 +591,8 @@ async function addMember(request, env, me) {
 }
 
 // Lets someone in: brings back a past account with the same email, or creates one.
-// Members get the open group's label; observers join no group.
 async function admit(env, { email, name, role, invitedBy, keepName = false }) {
-  const cohort = role === "observer" ? null : await groupFor(env);
+  const cohort = null;   // no more group labels (Nov 19)
   const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
   if (existing) await env.DB.prepare(`UPDATE users SET status = 'active', name = ${keepName ? "COALESCE(name, ?)" : "?"}, role = ?, invited_by = ?, cohort = ? WHERE id = ?`)
     .bind(name, role, invitedBy, cohort, existing.id).run();
@@ -801,42 +797,6 @@ async function claimApplication(env, me, id, action) {
   return json({ ok: true });
 }
 
-// ---------------------------------------------------------------- cohorts
-// No cap: every approved member joins one network. Groups are only labels (like "Founding group"),
-// so a new member gets the open group's label if there is one.
-async function groupFor(env) {
-  const c = await env.DB.prepare("SELECT number FROM cohorts WHERE status = 'open' ORDER BY number DESC LIMIT 1").first();
-  return c ? c.number : null;
-}
-async function listCohorts(env) {
-  const { results } = await env.DB.prepare(`SELECT c.*, (SELECT COUNT(*) FROM users u WHERE u.status = 'active' AND u.cohort = c.number) AS members FROM cohorts c ORDER BY c.number`).all();
-  return json({ cohorts: results });
-}
-async function openCohort(request, env) {
-  const b = await readJson(request);
-  const last = await env.DB.prepare("SELECT MAX(number) AS n FROM cohorts").first();
-  const n = (last.n || 0) + 1, t = now();
-  await env.DB.batch([   // seats is unused now (no cap); 0 keeps the old column filled
-    env.DB.prepare("UPDATE cohorts SET status = 'closed', closed_at = ? WHERE status = 'open'").bind(t),
-    env.DB.prepare("INSERT INTO cohorts (number, name, seats, status, opened_at) VALUES (?, ?, 0, 'open', ?)").bind(n, clean(b.name, 60), t),
-  ]);
-  await notify(env, { type: "changed", what: "members" });
-  return json({ ok: true, number: n });
-}
-async function editCohort(request, env, n) {
-  const b = await readJson(request);
-  const c = await env.DB.prepare("SELECT * FROM cohorts WHERE number = ?").bind(n).first();
-  if (!c) throw new HttpError(404, "not_found", "Group not found.");
-  if (b.name !== undefined) await env.DB.prepare("UPDATE cohorts SET name = ? WHERE number = ?").bind(clean(b.name, 60), n).run();
-  if (b.status === "closed") await env.DB.prepare("UPDATE cohorts SET status = 'closed', closed_at = ? WHERE number = ?").bind(now(), n).run();
-  if (b.status === "open") await env.DB.batch([
-    env.DB.prepare("UPDATE cohorts SET status = 'closed', closed_at = ? WHERE status = 'open' AND number != ?").bind(now(), n),
-    env.DB.prepare("UPDATE cohorts SET status = 'open', closed_at = NULL WHERE number = ?").bind(n),
-  ]);
-  await notify(env, { type: "changed", what: "members" });
-  return json({ ok: true });
-}
-
 async function sendInvite(env, email, name, inviter, observer = false) {
   const who = inviter.name || "A member";
   await sendMail(env, email, `You're invited to ${env.APP_NAME}`,
@@ -857,19 +817,9 @@ async function editMember(request, env, me, id) {
     ]);
     try { await hub(env).fetch("https://hub/kick", { method: "POST", body: JSON.stringify({ user_id: id }) }); } catch {}
   }
-  if (b.cohort !== undefined) {
-    const c = await env.DB.prepare("SELECT number FROM cohorts WHERE number = ?").bind(parseInt(b.cohort, 10)).first();
-    if (!c) bad("Pick a group.");
-    await env.DB.prepare("UPDATE users SET cohort = ? WHERE id = ?").bind(c.number, id).run();
-  }
   if (b.role === "admin" || b.role === "member" || b.role === "observer") {
     if (target.id === me.id && b.role !== "admin") bad("You can't remove your own admin role.");
-    if (b.role === "observer") await env.DB.prepare("UPDATE users SET role = 'observer', cohort = NULL WHERE id = ?").bind(id).run();
-    else {
-      let cohort = target.cohort;
-      if (target.role === "observer" && !cohort) cohort = await groupFor(env);
-      await env.DB.prepare("UPDATE users SET role = ?, cohort = ? WHERE id = ?").bind(b.role, cohort, id).run();
-    }
+    await env.DB.prepare("UPDATE users SET role = ? WHERE id = ?").bind(b.role, id).run();
     try { await hub(env).fetch("https://hub/kick", { method: "POST", body: JSON.stringify({ user_id: id, reconnect: true }) }); } catch {}
   }
   await notify(env, { type: "changed", what: "members" });
