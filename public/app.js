@@ -1478,72 +1478,81 @@ document.addEventListener("toggle", fitAll, true);   // textareas inside <detail
     .observe(document.getElementById("view"), { childList: true, subtree: true });
 })();
 
-// ------------------------------------------------------------ membership terms (agree once)
-function showTerms() {
-  return new Promise((resolve) => {
-    const o = document.createElement("div");
-    o.className = "terms-overlay";
-    o.innerHTML = `<div class="terms-card" role="dialog" aria-modal="true" aria-labelledby="terms-h">
-      <div class="tag">Welcome to Stag Hunt</div>
-      <h2 id="terms-h">A few house rules first</h2>
-      <p>Stag Hunt only works if everyone can trust each other. Please read these once.</p>
-      <ol class="terms-list">
-        <li><b>Deals stay among members.</b> Founders' rounds, terms and members' companies are confidential.</li>
-        <li><b>Disclose your interest.</b> If you work at, advise or already invested in a company you post, say so.</li>
-        <li><b>Nothing here is investment advice.</b> Do your own homework and only invest what you can afford to lose. Most startups fail.</li>
-        <li><b>Check you qualify.</b> Many rounds are open only to accredited investors. That's on each of us to check.</li>
-        <li><b>No pooled money.</b> Everyone invests on their own. Stag Hunt never holds or moves money.</li>
-        <li><b>Clean deals only.</b> No gambling, no adult content or pornography, and nothing built on cheating or deceiving people.</li>
-        <li><b>Give before you take.</b> Share the good deals you find, and make your call on others' deals.</li>
-      </ol>
-      <label class="check"><input type="checkbox" id="terms-ok"> I agree to these rules, the <a href="/terms/" target="_blank">Terms of Service</a> and the <a href="/privacy/" target="_blank">Privacy Policy</a></label>
-      <button class="btn block" id="terms-go" disabled>Enter Stag Hunt</button>
-      <div class="msg err"></div>
-    </div>`;
-    document.body.appendChild(o);
-    const ok = o.querySelector("#terms-ok"), go = o.querySelector("#terms-go");
-    ok.onchange = () => (go.disabled = !ok.checked);
-    go.onclick = async () => {
-      go.disabled = true;
-      try { await api("/api/me/terms", {}); o.remove(); resolve(); }
-      catch (e) { o.querySelector(".msg").textContent = e.message; go.disabled = false; }
-    };
-  });
-}
-
 // ------------------------------------------------------------ investor statement
 // Deals go only to people who say they're accredited and will keep deals confidential; accounts made
 // after sign-up opened wait 30 days. The exact wording comes from the server and is kept with each statement.
+// One short welcome: who you are, then the investor statement (which carries the house rules and terms),
+// then a clear word on what happens next. People who only need the statement see just that step.
 function showStatement(canClose = false) {
   return new Promise(async (resolve) => {
     const st = await api("/api/statement");
+    const me = state.me, isNew = me.accredited == null && !me.terms_accepted_at;
+    const titles = { income: "Income", net_worth: "Net worth", license: "License", entity: "Through an entity", none: "Not accredited" };
+    const steps = isNew ? 2 : 1;
+    const linked = (t) => esc(t).replace("house rules", '<a href="/terms/#rules" target="_blank">house rules</a>')
+      .replace("Terms of Service", '<a href="/terms/" target="_blank">Terms of Service</a>').replace("Privacy Policy", '<a href="/privacy/" target="_blank">Privacy Policy</a>');
+    const progress = (n) => steps > 1 ? `<div class="ststeps" aria-label="Step ${n} of ${steps}">${[1, 2].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</div>` : "";
     const o = document.createElement("div");
     o.className = "terms-overlay stwrap";
-    const titles = { income: "Income", net_worth: "Net worth", license: "License", entity: "Through an entity", none: "Not accredited" };
     o.innerHTML = `<div class="terms-card stcard" role="dialog" aria-modal="true" aria-labelledby="st-h">
-      <div class="tag">Investor statement</div>
-      <h2 id="st-h">One step before deals</h2>
-      <p class="stlead">Founders share their rounds here in confidence, and the law lets them share only with accredited investors.</p>
-      <form id="st-form">
+      ${isNew ? `<form id="st-you" class="ststep">
+        ${progress(1)}
+        <div class="tag">Welcome to Stag Hunt</div>
+        <h2 id="st-h">Who are you?</h2>
+        <p class="stlead">Two short steps and you're in. Members see your name next to the deals you bring and the calls you make.</p>
+        <label for="st-name">Your name</label><input id="st-name" name="name" required maxlength="80" autocomplete="name" value="${esc(me.name && !me.email.startsWith(me.name + "@") ? me.name : "")}">
+        <label for="st-tier">Largest check you'd write <span class="faint">(optional)</span></label><input id="st-tier" name="tier" inputmode="decimal" maxlength="20" placeholder="Any amount, like 25,000" value="${me.tier ? esc(String(me.tier)) : ""}">
+        <div class="hint">You'll see deals that take a check this size or smaller. Leave it empty to see every deal.</div>
+        <button class="btn block" type="submit">Continue</button>
+        <div class="msg err"></div>
+      </form>` : ""}
+      <form id="st-form" class="ststep" ${isNew ? "hidden" : ""}>
+        ${progress(2)}
+        <div class="tag">Investor statement</div>
+        <h2 ${isNew ? "" : 'id="st-h"'}>One step before deals</h2>
+        <p class="stlead">Founders share their rounds here in confidence, and the law lets them share only with accredited investors.</p>
         <div class="stq">Which is true for you?</div>
-        <div class="stopts" role="radiogroup">${Object.entries(st.bases).map(([k, t]) => `<label class="stopt"><input type="radio" name="basis" value="${k}" ${state.me.accredited === k ? "checked" : ""} required><span class="stmark"></span><span class="sttxt"><b>${esc(titles[k] || k)}</b><span>${esc(t)}</span></span></label>`).join("")}</div>
+        <div class="stopts" role="radiogroup">${Object.entries(st.bases).map(([k, t]) => `<label class="stopt"><input type="radio" name="basis" value="${k}" ${me.accredited === k ? "checked" : ""} required><span class="stmark"></span><span class="sttxt"><b>${esc(titles[k] || k)}</b><span>${esc(t)}</span></span></label>`).join("")}</div>
+        <p class="stnone" hidden>You can still bring deals, start hunts and build your record. You won't see other members' deals until you're accredited.</p>
         <div class="stq">And you agree</div>
-        <div class="stopts stpromises">${st.promises.map((t, i) => `<label class="stopt"><input type="checkbox" data-i="${i}" required><span class="stmark sq"></span><span class="sttxt"><span>${esc(t)}</span></span></label>`).join("")}</div>
-        <button class="btn block" type="submit">Save my statement</button>
-        ${canClose ? '<button class="link small stclose" type="button" id="st-close">Not now</button>' : ""}
+        <div class="stopts stpromises">${st.promises.map((t, i) => `<label class="stopt"><input type="checkbox" data-i="${i}" required><span class="stmark sq"></span><span class="sttxt"><span>${linked(t)}</span></span></label>`).join("")}</div>
+        <button class="btn block" type="submit">${isNew ? "Join Stag Hunt" : "Save my statement"}</button>
+        ${isNew ? '<button class="link small stclose" type="button" id="st-back">Back</button>' : canClose ? '<button class="link small stclose" type="button" id="st-close">Not now</button>' : ""}
         <div class="msg err"></div>
       </form>
+      <div id="st-done" class="ststep" hidden></div>
     </div>`;
     document.body.appendChild(o);
-    const f = o.querySelector("#st-form");
-    if (canClose) o.querySelector("#st-close").onclick = () => { o.remove(); resolve(false); };
-    f.onsubmit = async (e) => {
+    const card = o.querySelector(".stcard"), you = o.querySelector("#st-you"), f = o.querySelector("#st-form"), done = o.querySelector("#st-done");
+    const show = (el) => { for (const s of card.querySelectorAll(".ststep")) s.hidden = s !== el; o.scrollTop = 0; el.querySelector("input,button")?.focus({ preventScroll: true }); };
+    const busy = async (form, work) => {
+      const go = form.querySelector("button[type=submit]"), msg = form.querySelector(".msg");
+      go.disabled = true; msg.textContent = "";
+      try { await work(); } catch (err) { msg.textContent = err.message; } finally { go.disabled = false; }
+    };
+    if (you) {
+      you.onsubmit = (e) => { e.preventDefault(); busy(you, async () => { state.me = (await api("/api/me/basics", { name: you.name.value, tier: you.tier.value })).user; renderMe(); show(f); }); };
+      o.querySelector("#st-back").onclick = () => show(you);
+      setTimeout(() => you.name.focus(), 50);
+    }
+    if (canClose && !isNew) o.querySelector("#st-close").onclick = () => { o.remove(); resolve(false); };
+    f.addEventListener("change", () => (o.querySelector(".stnone").hidden = f.basis.value !== "none"));
+    f.onsubmit = (e) => {
       e.preventDefault();
-      const go = f.querySelector("button[type=submit]"); go.disabled = true;
-      try {
-        const r = await api("/api/me/statement", { basis: f.basis.value, agree: [...f.querySelectorAll("[data-i]")].map((c) => c.checked) });
-        state.me = r.user; o.remove(); resolve(true);
-      } catch (err) { f.querySelector(".msg").textContent = err.message; go.disabled = false; }
+      busy(f, async () => {
+        state.me = (await api("/api/me/statement", { basis: f.basis.value, agree: [...f.querySelectorAll("[data-i]")].map((c) => c.checked) })).user;
+        if (!isNew) { o.remove(); resolve(true); return; }
+        const when = state.me.deals_open_at && new Date(state.me.deals_open_at * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+        done.innerHTML = `<div class="tag">You're in</div>
+          <h2>Welcome, ${esc(state.me.name.split(" ")[0])}.</h2>
+          <p class="stlead">${dealsOpen() ? "Deals are open to you now." : state.me.accredited === "none"
+            ? "You can bring deals, start a hunt and build your record. Deals from other members are for accredited investors."
+            : `Deals open for you on <b>${when}</b>. The 30-day wait keeps founders' rounds private and lawful.`}</p>
+          <ul class="stnext"><li><b>Bring a deal</b> when you meet a founder worth backing.</li><li><b>Start a hunt</b> with the people you already trade deals with.</li>${dealsOpen() ? "<li><b>Make your calls</b>, yes or no with a line on why. Your record is yours.</li>" : "<li><b>Fill in your profile</b>, so members know who they're hunting with.</li>"}</ul>
+          <button class="btn block" type="button" id="st-enter">Enter Stag Hunt</button>`;
+        show(done);
+        done.querySelector("#st-enter").onclick = () => { o.remove(); resolve(true); };
+      });
     };
   });
 }
@@ -1565,8 +1574,7 @@ document.addEventListener("click", async (e) => { if (e.target.closest("[data-st
   if (!r.ok) { location.replace("/login"); return; }
   state.me = (await r.json()).user;
   document.body.classList.toggle("observer", state.me.role === "observer");
-  if (!state.me.terms_accepted_at) await showTerms();
-  if (state.me.accredited == null) await showStatement();
+  if (state.me.accredited == null || !state.me.terms_accepted_at) await showStatement();
   $("#app").hidden = false;
   renderMe();
   $("#menu").onclick = () => $("#app").classList.toggle("menu");

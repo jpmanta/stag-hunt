@@ -1,6 +1,6 @@
 # Stag Hunt Architecture (the framework)
 
-The short version of the design (draft 1.2, November 19, 2026). Read it before any design change.
+The short version of the design (draft 1.3, November 19, 2026). Read it before any design change.
 
 ## The idea
 Many hunts on one network. A hunt is a group that shares deals (a Junto; a fund or angel group is a hunt too).
@@ -60,7 +60,10 @@ pledges and syndicates, non-accredited members, and whether open sign-up with th
   the first hunt. Nominations, join requests and admin-added members are gone. A removed person stays out.
   Members see each other's names, not email addresses; admins still see emails.
   Nobody is approved by hand: the nightly job (letInWaiting) lets in anyone still waiting from before sign-up
-  opened and emails them that they're in.
+  opened and emails them that they're in; signing up on their own closes the old request, so nobody hears twice.
+- Joining is one sheet (showStatement in public/app.js): 1 name and optional check size (/api/me/basics),
+  2 the investor statement, whose last promise is the house rules, Terms and Privacy Policy (it sets
+  terms_accepted_at; wording version 2026-11-19b), 3 what happens next. Earlier members see only step 2.
 - Not built: hunt settings, shares, signals, suggestions, matching, the outcome history table, knows_founders.
 - Known gap: pledges still exist; the lawyer question on them is open.
 - Investor statement built Nov 19 (migration 0028, I16): investor_statements is append only and keeps the exact wording

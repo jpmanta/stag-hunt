@@ -147,13 +147,14 @@ async function route(request, env, ctx, url) {
   const me = await currentUser(request, env);
   if (!me) throw new HttpError(401, "signed_out", "Please sign in.");
 
-  if (me.role === "observer" && m === "POST" && !/^\/api\/(me(\/(photo|notifications|terms|statement))?|passkey\/register\/(options|verify)|passkeys\/[^/]+\/delete|auth\/logout|me\/(delete|test-email|api-key(\/delete)?|record-link(\/delete)?))$/.test(p))
+  if (me.role === "observer" && m === "POST" && !/^\/api\/(me(\/(photo|notifications|terms|statement|basics))?|passkey\/register\/(options|verify)|passkeys\/[^/]+\/delete|auth\/logout|me\/(delete|test-email|api-key(\/delete)?|record-link(\/delete)?))$/.test(p))
     throw new HttpError(403, "observer", "Observers can read but not post.");
   if (m === "GET" && p === "/api/ws") return connectWs(request, env, me);
   if (m === "POST" && p === "/api/me") return updateMe(request, env, me);
   if (m === "POST" && p === "/api/me/terms") { await env.DB.prepare("UPDATE users SET terms_accepted_at = ? WHERE id = ?").bind(now(), me.id).run(); return json({ ok: true }); }
   if (m === "GET" && p === "/api/statement") return json(STATEMENT);
   if (m === "POST" && p === "/api/me/statement") return makeStatement(request, env, me);
+  if (m === "POST" && p === "/api/me/basics") return saveBasics(request, env, me);
   if (m === "POST" && p === "/api/me/notifications") return updateNotifications(request, env, me);
   if (m === "POST" && p === "/api/me/test-email") return sendTestEmails(env, me, !!(await request.json().catch(() => ({}))).sample);
   if (m === "GET" && p === "/api/me/history") return myHistory(env, me);
@@ -355,7 +356,7 @@ async function verifyLink(request, env) {
     env.DB.prepare("UPDATE users SET last_login = ? WHERE id = ?").bind(t, user.id),
     s.insert,
   ]);
-  return go(user.last_login ? "/app" : "/app#/profile?welcome=1", { "Set-Cookie": s.cookie });
+  return go("/app", { "Set-Cookie": s.cookie });
 }
 
 async function logout(request, env) {
@@ -587,6 +588,7 @@ async function signUp(env, email, name) {
   const u = await find();
   if (u) return u.status === "active" ? u : null;
   await admit(env, { email, name: name || email.split("@")[0], role: "member", invitedBy: null });
+  await env.DB.prepare("UPDATE join_requests SET status = 'approved', decided_at = ? WHERE email = ? AND status = 'open'").bind(now(), email).run();
   await notify(env, { type: "changed", what: "members" });
   return find();
 }
@@ -598,9 +600,9 @@ async function letInWaiting(env) {
     "SELECT r.id, r.email, r.name FROM join_requests r WHERE r.status = 'open' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.email = r.email AND u.status = 'removed') LIMIT 50").all();
   for (const r of results) {
     const name = r.name || r.email.split("@")[0];
-    if (!(await env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND status = 'active'").bind(r.email).first()))
-      await admit(env, { email: r.email, name, role: "member", invitedBy: null, keepName: true });
     await env.DB.prepare("UPDATE join_requests SET status = 'approved', decided_at = ? WHERE id = ?").bind(now(), r.id).run();
+    if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND status = 'active'").bind(r.email).first()) continue;   // already joined on their own
+    await admit(env, { email: r.email, name, role: "member", invitedBy: null, keepName: true });
     await sendMail(env, r.email, `You're in, ${name}`,
       `You asked to join ${env.APP_NAME}. It's now open to everyone, so you're in.\n\nSign in with this email address, no password needed: https://staghunts.com/login\n\nBefore you see deals, you'll make a short investor statement.`,
       mailLayout(env.APP_NAME, mailTitle(`You're in, ${escHtml(name)}.`) +
@@ -895,7 +897,7 @@ const fitsSql = (me) => {
 
 // The investor statement (I16). Its exact wording is stored with every statement, so changing it means a new version.
 const STATEMENT = {
-  version: "2026-11-19",
+  version: "2026-11-19b",
   bases: {
     income: "My income was over $200,000 in each of the last two years ($300,000 together with a spouse or partner), and I expect the same this year.",
     net_worth: "My net worth is over $1 million, alone or with a spouse or partner, not counting my home.",
@@ -908,8 +910,20 @@ const STATEMENT = {
     "I'll keep every deal, founder and term I see here confidential. I won't forward, post or share them outside Stag Hunt.",
     "I understand Stag Hunt is not a broker, adviser or funding portal, gives no investment advice, and never holds money. Each company decides who may invest and checks it under its own documents.",
     "What I've said is true, and I'll update it here if it changes.",
+    "I agree to the house rules, the Terms of Service and the Privacy Policy.",
   ],
 };
+
+// The first step of joining: a name, and optionally the largest check they'd write
+async function saveBasics(request, env, me) {
+  const b = await readJson(request);
+  const name = clean(b.name, 80);
+  if (!name) bad("Add your name.");
+  if (String(b.tier ?? "").trim() && !dollars(b.tier)) bad("Check size should be an amount, like 25,000.");
+  await env.DB.prepare("UPDATE users SET name = ?, tier = ? WHERE id = ?").bind(name, dollars(b.tier), me.id).run();
+  await notify(env, { type: "changed", what: "members" });
+  return json({ ok: true, user: publicUser(await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()) });
+}
 
 async function makeStatement(request, env, me) {
   const b = await readJson(request);
@@ -920,8 +934,8 @@ async function makeStatement(request, env, me) {
     env.DB.prepare("INSERT INTO investor_statements (user_id, version, basis, wording, at) VALUES (?, ?, ?, ?, ?)")
       .bind(me.id, STATEMENT.version, b.basis, JSON.stringify({ basis: STATEMENT.bases[b.basis], promises: STATEMENT.promises }), t),
     // The 30-day wait starts at the first statement that says accredited
-    env.DB.prepare("UPDATE users SET accredited = ?, statement_at = CASE WHEN statement_at IS NULL AND ? THEN ? ELSE statement_at END WHERE id = ?")
-      .bind(b.basis, yes ? 1 : 0, t, me.id),
+    env.DB.prepare("UPDATE users SET accredited = ?, statement_at = CASE WHEN statement_at IS NULL AND ? THEN ? ELSE statement_at END, terms_accepted_at = ? WHERE id = ?")
+      .bind(b.basis, yes ? 1 : 0, t, t, me.id),
   ]);
   const u = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first();
   return json({ ok: true, user: publicUser(u) });
@@ -2311,7 +2325,7 @@ async function googleCallback(request, env, url) {
     env.DB.prepare("UPDATE users SET last_login = ?, name = COALESCE(name, ?) WHERE id = ?").bind(t, clean(claims.name, 80), user.id),
     s.insert,
   ]);
-  const h = new Headers({ Location: user.last_login ? "/app" : "/app#/profile?welcome=1", "Cache-Control": "no-store" });
+  const h = new Headers({ Location: "/app", "Cache-Control": "no-store" });
   h.append("Set-Cookie", clear["Set-Cookie"]);
   h.append("Set-Cookie", s.cookie);
   return new Response(null, { status: 302, headers: h });
