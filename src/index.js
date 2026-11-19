@@ -53,6 +53,7 @@ async function handle(request, env, ctx) {
     return Response.redirect(url.toString(), 301);
   }
   if (url.pathname === "/.well-known/apple-app-site-association") return appleSiteFile(env);
+  if (url.pathname === "/.well-known/assetlinks.json") return androidSiteFile(env);
   if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
 
   try {
@@ -74,6 +75,17 @@ function appleSiteFile(env) {
     webcredentials: { apps: [app] },
     applinks: { details: [{ appIDs: [app], components: [{ "/": "/api/auth/link*" }] }] },
   });
+}
+
+// Tells Android the Stag Hunt app is this site, so it opens full screen with no browser bar.
+// ANDROID_CERT_SHA256 in wrangler.jsonc lists the app's signing fingerprints, comma separated.
+function androidSiteFile(env) {
+  const prints = (env.ANDROID_CERT_SHA256 || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (!prints.length) return new Response("Not found", { status: 404 });
+  return json([{
+    relation: ["delegate_permission/common.handle_all_urls"],
+    target: { namespace: "android_app", package_name: env.ANDROID_PACKAGE || "com.staghunts.app", sha256_cert_fingerprints: prints },
+  }]);
 }
 
 class HttpError extends Error {
