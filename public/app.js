@@ -231,19 +231,21 @@ const routes = [
   [/^#\/history$/, viewHistory],
 ];
 let renderSeq = 0;
+let lastPath = null;
 async function router() {
   const seq = ++renderSeq;
   const path = location.hash.split("?")[0].replace(/#(score|hunt|lookback)$/, "");
   state.refresh = null;
   $("#app").classList.remove("menu");
   const view = $("#view");
+  const moved = path !== lastPath; lastPath = path;   // a new page arrives; a live refresh of the same page doesn't
   view.className = "view";
   renderNav();
   for (const [re, fn] of routes) {
     const m = (path || "#/").match(re);
     if (m) {
       try { await fn(m, seq); } catch (e) { if (seq === renderSeq) view.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
-      window.scrollTo(0, 0);
+      if (moved && seq === renderSeq) { view.classList.add("enter"); setTimeout(() => seq === renderSeq && view.classList.remove("enter"), 900); window.scrollTo(0, 0); }
       return;
     }
   }
