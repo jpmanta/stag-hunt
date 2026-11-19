@@ -91,6 +91,28 @@ function toast(text, href) {
   setTimeout(() => t.remove(), 6000);
 }
 
+// Our own "are you sure" and "type a value" sheets. The built-in ones (confirm, prompt, alert) never
+// appear inside the iPhone app, where they quietly answer "no", so nothing that asks first would work.
+function sheet(text, { ok = "Yes", cancel = "Cancel", input = null } = {}) {
+  return new Promise((done) => {
+    const w = document.createElement("div");
+    w.className = "sheetwrap";
+    w.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><p>${esc(text)}</p>${input === null ? "" : '<input type="text" class="sheet-in">'}
+      <div class="sheet-btns"><button type="button" class="btn ghost" data-a="no">${esc(cancel)}</button><button type="button" class="btn" data-a="yes">${esc(ok)}</button></div></div>`;
+    const field = $(".sheet-in", w);
+    if (field) field.value = input;
+    const prev = document.activeElement;
+    const end = (yes) => { removeEventListener("keydown", key, true); w.remove(); try { prev && prev.focus({ preventScroll: true }); } catch {} done(field ? (yes ? field.value : null) : yes); };
+    const key = (e) => { if (e.key === "Escape") { e.preventDefault(); end(false); } else if (e.key === "Enter" && (field || e.target === document.body)) { e.preventDefault(); end(true); } };
+    w.addEventListener("click", (e) => { const a = e.target.closest("[data-a]"); if (a) end(a.dataset.a === "yes"); else if (e.target === w) end(false); });
+    addEventListener("keydown", key, true);
+    document.body.appendChild(w);
+    if (field) { field.focus(); field.select(); } else $('[data-a="yes"]', w).focus({ preventScroll: true });
+  });
+}
+const ask = (text, ok) => sheet(text, { ok });
+const askText = (label, value = "", ok = "Save") => sheet(label, { ok, input: value });
+
 function formData(form) {
   const o = {};
   for (const el of form.elements) {
@@ -107,7 +129,7 @@ async function submitting(form, fn) {
   if (msg) { msg.textContent = ""; msg.className = "msg err"; }
   if (btn) btn.disabled = true;
   try { await fn(); }
-  catch (e) { if (msg) msg.textContent = e.message; else alert(e.message); }
+  catch (e) { if (msg) msg.textContent = e.message; else toast(e.message); }
   finally { if (btn) btn.disabled = false; }
 }
 
@@ -184,6 +206,7 @@ function renderTabbar() {
     t("#/members", "members", "Members", cur.startsWith("#/members")) +
     `<button type="button" id="more" class="${/^#\/(inbound|nominations|admin|profile|history|hunts)/.test(cur) ? "on" : ""}">${icon("more")}<span>More</span></button>`;
   bar.querySelector("#more").onclick = () => $("#app").classList.toggle("menu");
+  bar.querySelectorAll("a.on").forEach((a) => a.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" })));
 }
 function renderMe() {
   if (!state.me) return;
@@ -548,7 +571,7 @@ async function viewDealForm(id) {
   };
   const discard = $("#discard-rec");
   if (discard) discard.onclick = async () => {
-    if (!confirm("Discard this draft and delete the transcript?")) return;
+    if (!(await ask("Discard this draft and delete the transcript?"))) return;
     try { await api(`/api/rec/${rd.rec_id}/delete`, {}); } catch {}
     sessionStorage.removeItem("recDraft"); router();
   };
@@ -617,7 +640,7 @@ async function viewApplication(id) {
   act("#claim", `/api/inbound/${id}/claim`, () => router());
   act("#release", `/api/inbound/${id}/release`, () => router());
   const rm = $("#remove");
-  if (rm) rm.onclick = async () => { if (!confirm("Remove this application? Use this for spam or companies that break our standard.")) return; await api(`/api/admin/inbound/${id}/delete`, {}); location.hash = "#/inbound"; };
+  if (rm) rm.onclick = async () => { if (!(await ask("Remove this application? Use this for spam or companies that break our standard."))) return; await api(`/api/admin/inbound/${id}/delete`, {}); location.hash = "#/inbound"; };
   live(() => router(), (ev) => ev.what === "inbound" && (!ev.id || ev.id === id));
 }
 
@@ -721,7 +744,7 @@ async function viewDeal(id, seq) {
   $("#sharedeal").onclick = async () => {
     const url = `https://staghunts.com/app#/deals/${d.id}`;
     if (navigator.share) { try { await navigator.share({ title: d.company, text: `${d.company}: ${d.one_liner}`, url }); } catch {} return; }
-    try { await navigator.clipboard.writeText(url); toast("Link copied. Paste it in the group chat."); } catch { prompt("Copy this link:", url); }
+    try { await navigator.clipboard.writeText(url); toast("Link copied. Paste it in the group chat."); } catch { await askText("Copy this link:", url, "Done"); }
   };
 
   const sf = $("#scoreform");
@@ -736,19 +759,19 @@ async function viewDeal(id, seq) {
     }));
   }
   if (sf) { wireScorecard(sf);
-    sf.addEventListener("submit", (e) => { e.preventDefault();
-      if (!confirm("Submit your call? It locks once it's in, and then you'll see everyone else's.")) return;
+    sf.addEventListener("submit", async (e) => { e.preventDefault();
+      if (!(await ask("Submit your call? It locks once it's in, and then you'll see everyone else's.", "Submit"))) return;
       submitting(sf, async () => { await api(`/api/deals/${d.id}/score`, scoreFromForm(formData(sf))); toast("Call saved");
         await viewDeal(d.id); $("#score")?.scrollIntoView(); }); }); }
   const inf = $("#invform");
   inf.addEventListener("submit", (e) => { e.preventDefault(); submitting(inf, async () => { await api(`/api/deals/${d.id}/invest`, formData(inf)); toast("Investment logged"); }); });
-  $("#uninvest")?.addEventListener("click", async () => { if (confirm("Remove your investment from this deal?")) await api(`/api/deals/${d.id}/invest/delete`, {}); });
+  $("#uninvest")?.addEventListener("click", async () => { if (await ask("Remove your investment from this deal?")) await api(`/api/deals/${d.id}/invest/delete`, {}); });
   const pf = $("#pledgeform");
   pf?.addEventListener("submit", (e) => { e.preventDefault(); submitting(pf, async () => {
     const res = await api(`/api/deals/${d.id}/pledge`, formData(pf));
     toast(res.locked ? "It locked in. The hunt is on." : pl.mine?.locked_at ? "Promise raised" : "Promise saved. Nobody sees it until it locks in.");
   }); });
-  $("#unpledge")?.addEventListener("click", async () => { if (confirm("Take back your promise?")) { await api(`/api/deals/${d.id}/pledge/withdraw`, {}); toast("Promise taken back"); } });
+  $("#unpledge")?.addEventListener("click", async () => { if (await ask("Take back your promise?")) { await api(`/api/deals/${d.id}/pledge/withdraw`, {}); toast("Promise taken back"); } });
   const of = $("#outcomeform");
   of?.addEventListener("submit", (e) => { e.preventDefault(); submitting(of, async () => {
     const f = formData(of); await api(`/api/deals/${d.id}/outcome`, f);
@@ -761,7 +784,7 @@ async function viewDeal(id, seq) {
   uf.addEventListener("submit", (e) => { e.preventDefault(); submitting(uf, async () => { await api(`/api/deals/${d.id}/updates`, formData(uf)); uf.reset(); }); });
   $("#status")?.addEventListener("change", async (e) => { await api("/api/deals/" + d.id, { status: e.target.value }); toast("Status updated"); });
   $("#del")?.addEventListener("click", async () => {
-    if (!confirm(`Delete ${d.company} and all its calls, investments and discussion? This can't be undone.`)) return;
+    if (!(await ask(`Delete ${d.company} and all its calls, investments and discussion? This can't be undone.`))) return;
     await api(`/api/admin/deals/${d.id}/delete`, {}); location.hash = "#/deals";
   });
   if (location.hash.includes("#score") || location.hash.endsWith("#score")) $("#score")?.scrollIntoView();
@@ -1087,8 +1110,8 @@ async function shareTrackPanel() {
   </div>`;
   const on = async () => { await api("/api/me/record-link", {}); shareTrackPanel(); };
   if ($("#trackon")) $("#trackon").onclick = on;
-  if ($("#tracknew")) $("#tracknew").onclick = () => confirm("Make a new link? The old one stops working.") && on();
-  if ($("#trackoff")) $("#trackoff").onclick = async () => { if (!confirm("Turn off your link? Anyone you shared it with loses access.")) return; await api("/api/me/record-link/delete", {}); shareTrackPanel(); };
+  if ($("#tracknew")) $("#tracknew").onclick = async () => { if (await ask("Make a new link? The old one stops working.", "New link")) on(); };
+  if ($("#trackoff")) $("#trackoff").onclick = async () => { if (!(await ask("Turn off your link? Anyone you shared it with loses access."))) return; await api("/api/me/record-link/delete", {}); shareTrackPanel(); };
   if ($("#trackcopy")) $("#trackcopy").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Copied"); } catch { toast("Select it and copy"); } };
 }
 
@@ -1112,11 +1135,11 @@ async function apiKeyPanel(fresh) {
   </div>`;
   box.querySelectorAll("[data-copy]").forEach((b) => (b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copy); toast("Copied"); } catch { toast("Select it and copy"); } }));
   $("#keymake").onclick = async () => {
-    if ((key || fresh) && !confirm("Make a new key? The old one stops working, so update anything that uses it.")) return;
+    if ((key || fresh) && !await ask("Make a new key? The old one stops working, so update anything that uses it.")) return;
     const r = await api("/api/me/api-key", {}); apiKeyPanel(r.key);
   };
   const del = $("#keydel");
-  if (del) del.onclick = async () => { if (!confirm("Turn off your key? Anything using it stops updating.")) return; await api("/api/me/api-key/delete", {}); apiKeyPanel(); };
+  if (del) del.onclick = async () => { if (!(await ask("Turn off your key? Anything using it stops updating."))) return; await api("/api/me/api-key/delete", {}); apiKeyPanel(); };
 }
 
 // ------------------------------------------------------------ nominations
@@ -1175,9 +1198,9 @@ async function viewHunt(id, seq) {
     const r = await api(`/api/hunts/${id}/invite`, formData(inv));
     toast(r.member ? "Invite sent" : "They aren't on Stag Hunt yet. The invite will be waiting when they join."); router(); }); });
   $$("[data-uninvite]").forEach((b) => (b.onclick = async () => { await api(`/api/hunts/${id}/uninvite`, { email: b.dataset.uninvite }); router(); }));
-  if (lead) $("#rename").onclick = async () => { const name = prompt("Hunt name", hunt.name); if (name && name.trim()) { await api("/api/hunts/" + id, { name }); router(); } };
+  if (lead) $("#rename").onclick = async () => { const name = await askText("Hunt name", hunt.name); if (name && name.trim()) { await api("/api/hunts/" + id, { name }); router(); } };
   $("#leave").onclick = async () => {
-    if (!confirm(`Leave ${hunt.name}? Your record and the deals you brought stay yours.`)) return;
+    if (!(await ask(`Leave ${hunt.name}? Your record and the deals you brought stay yours.`))) return;
     await api(`/api/hunts/${id}/leave`, {}); toast("You left the hunt"); location.hash = "#/hunts"; };
   live(router, (ev) => ev.what === "hunts");
 }
@@ -1217,13 +1240,13 @@ async function viewNominations(_, seq) {
   nf.addEventListener("submit", (e) => { e.preventDefault(); submitting(nf, async () => { await api("/api/nominations", formData(nf)); nf.reset(); toast("Nomination posted"); }); });
   $$("[data-obj]").forEach((b) => (b.onclick = async () => {
     if (b.dataset.on === "1") await api(`/api/nominations/${b.dataset.obj}/object`, { withdraw: true });
-    else { const reason = prompt("Optional: why do you object? (Only admins see this.)"); if (reason === null) return; await api(`/api/nominations/${b.dataset.obj}/object`, { reason }); }
+    else { const reason = await askText("Optional: why do you object? (Only admins see this.)", "", "Object"); if (reason === null) return; await api(`/api/nominations/${b.dataset.obj}/object`, { reason }); }
   }));
-  $$("[data-approve]").forEach((b) => (b.onclick = async () => { if (confirm("Approve and email them an invite?")) await api(`/api/admin/nominations/${b.dataset.approve}`, { action: "approve" }); }));
-  $$("[data-reject]").forEach((b) => (b.onclick = async () => { if (confirm("Decline this nomination?")) await api(`/api/admin/nominations/${b.dataset.reject}`, { action: "reject" }); }));
-  $$("[data-rq-approve]").forEach((b) => (b.onclick = async () => { if (confirm("Approve and email them an invite?")) { await api(`/api/admin/requests/${b.dataset.rqApprove}`, { action: "approve" }); toast("Approved. Invite sent."); } }));
-  $$("[data-rq-observe]").forEach((b) => (b.onclick = async () => { if (confirm("Let them in as an observer? They can read everything but can't post or make calls. They'll get an invite email.")) { await api(`/api/admin/requests/${b.dataset.rqObserve}`, { action: "observe" }); toast("Added as an observer. Invite sent."); } }));
-  $$("[data-rq-decline]").forEach((b) => (b.onclick = async () => { if (confirm("Decline this request?")) await api(`/api/admin/requests/${b.dataset.rqDecline}`, { action: "decline" }); }));
+  $$("[data-approve]").forEach((b) => (b.onclick = async () => { if (await ask("Approve and email them an invite?")) await api(`/api/admin/nominations/${b.dataset.approve}`, { action: "approve" }); }));
+  $$("[data-reject]").forEach((b) => (b.onclick = async () => { if (await ask("Decline this nomination?")) await api(`/api/admin/nominations/${b.dataset.reject}`, { action: "reject" }); }));
+  $$("[data-rq-approve]").forEach((b) => (b.onclick = async () => { if (await ask("Approve and email them an invite?")) { await api(`/api/admin/requests/${b.dataset.rqApprove}`, { action: "approve" }); toast("Approved. Invite sent."); } }));
+  $$("[data-rq-observe]").forEach((b) => (b.onclick = async () => { if (await ask("Let them in as an observer? They can read everything but can't post or make calls. They'll get an invite email.")) { await api(`/api/admin/requests/${b.dataset.rqObserve}`, { action: "observe" }); toast("Added as an observer. Invite sent."); } }));
+  $$("[data-rq-decline]").forEach((b) => (b.onclick = async () => { if (await ask("Decline this request?")) await api(`/api/admin/requests/${b.dataset.rqDecline}`, { action: "decline" }); }));
   live(() => router(), (ev) => ev.what === "nominations");
 }
 
@@ -1280,13 +1303,13 @@ async function viewAdmin(_, seq) {
   $("#msearch").oninput = (e) => { const q = e.target.value.trim().toLowerCase(); let n = 0;
     $$(".mrow").forEach((r) => { const hit = !q || r.dataset.q.includes(q); r.hidden = !hit; n += hit; }); $("#mnone").hidden = n > 0; };
   const oc = $("#openc");
-  oc.addEventListener("submit", (e) => { e.preventDefault(); if (open && !confirm(`Close ${cohortName(open.number)} and open Group ${roman(next)}?`)) return;
+  oc.addEventListener("submit", async (e) => { e.preventDefault(); if (open && !await ask(`Close ${cohortName(open.number)} and open Group ${roman(next)}?`)) return;
     submitting(oc, async () => { await api("/api/admin/cohorts", formData(oc)); toast(`New members are now labeled Group ${roman(next)}`); }); });
-  $("#closec")?.addEventListener("click", async () => { if (confirm("Stop giving new members this label? Anyone you approve still joins.")) await api(`/api/admin/cohorts/${open.number}`, { status: "closed" }); });
+  $("#closec")?.addEventListener("click", async () => { if (await ask("Stop giving new members this label? Anyone you approve still joins.")) await api(`/api/admin/cohorts/${open.number}`, { status: "closed" }); });
   $$("[data-cohort]").forEach((sel) => (sel.onchange = async () => { await api("/api/admin/members/" + sel.dataset.cohort, { cohort: sel.value }); toast("Group updated"); }));
-  $$("[data-remove]").forEach((b) => (b.onclick = async () => { if (confirm(`Remove ${b.dataset.name} from Stag Hunt? They'll be signed out immediately.`)) await api("/api/admin/members/" + b.dataset.remove, { status: "removed" }); }));
+  $$("[data-remove]").forEach((b) => (b.onclick = async () => { if (await ask(`Remove ${b.dataset.name} from Stag Hunt? They'll be signed out immediately.`)) await api("/api/admin/members/" + b.dataset.remove, { status: "removed" }); }));
   $$("[data-role]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.to === "observer" && !confirm("Make them an observer? They'll leave their group, be hidden from the group (listed only as an observer), and won't be able to post or make calls.")) return;
+    if (b.dataset.to === "observer" && !await ask("Make them an observer? They'll leave their group, be hidden from the group (listed only as an observer), and won't be able to post or make calls.")) return;
     await api("/api/admin/members/" + b.dataset.role, { role: b.dataset.to }); toast("Role updated");
   }));
   live(async () => { await loadPhotos(); router(); }, (ev) => ev.what === "members");
@@ -1368,7 +1391,7 @@ async function viewProfile() {
   const loadPk = async () => {
     const { passkeys } = await api("/api/passkeys");
     $("#pklist").innerHTML = passkeys.length ? passkeys.map((k) => `<span class="pk">${esc(k.name || "Device")} <button class="link small faint" data-pkdel="${k.id}" title="Turn off for ${esc(k.name || "this device")}" aria-label="Turn off for ${esc(k.name || "this device")}">×</button></span>`).join("") : '<span class="faint">Off</span>';
-    $$("[data-pkdel]").forEach((b) => (b.onclick = async () => { if (confirm(`Turn off ${b.title.replace("Turn off for ", "")} sign-in? You can still sign in by email.`)) { await api(`/api/passkeys/${b.dataset.pkdel}/delete`, {}); loadPk(); } }));
+    $$("[data-pkdel]").forEach((b) => (b.onclick = async () => { if (await ask(`Turn off ${b.title.replace("Turn off for ", "")} sign-in? You can still sign in by email.`)) { await api(`/api/passkeys/${b.dataset.pkdel}/delete`, {}); loadPk(); } }));
     // Offer it for this device unless this device already has one
     if ($("#pkadd")) $("#pkadd").hidden = Passkey.here() && passkeys.length > 0;
   };
@@ -1382,7 +1405,7 @@ async function viewProfile() {
   }); });
   $("#logout").onclick = async () => { await api("/api/auth/logout", {}); location.replace("/"); };
   $("#delacct").onclick = async () => {
-    if (!confirm("Delete your Stag Hunt account? We remove your account and data within 7 days and email you when it's done. You'll be signed out now.")) return;
+    if (!(await ask("Delete your Stag Hunt account? We remove your account and data within 7 days and email you when it's done. You'll be signed out now."))) return;
     await api("/api/me/delete", {}); location.replace("/");
   };
 }
@@ -1406,7 +1429,9 @@ document.addEventListener("toggle", fitAll, true);   // textareas inside <detail
 
 (function dictation() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;   // browser can't do speech-to-text: just don't show the mic
+  // no mic where speech-to-text isn't available, or inside the iPhone app: the app can't use the web
+  // speech service, and the iPhone keyboard already has its own dictation key
+  if (!SR || /StagHuntApp/.test(navigator.userAgent)) return;
   const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
   let active = null;
   function start(field, btn) {
@@ -1425,7 +1450,7 @@ document.addEventListener("toggle", fitAll, true);   // textareas inside <detail
       field.value = (base.trim() ? base.replace(/\s*$/, " ") : "") + said;
       field.dispatchEvent(new Event("input", { bubbles: true }));
     };
-    rec.onerror = (e) => { if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("Allow microphone access in your browser to dictate."); };
+    rec.onerror = (e) => { if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("Dictation is blocked. Allow the microphone for staghunts.com, or use the mic key on your keyboard."); };
     rec.onend = () => { btn.classList.remove("on"); btn.setAttribute("aria-label", "Dictate"); if (active && active.rec === rec) active = null; };
     try { rec.start(); } catch { return; }
     active = { rec, btn };
@@ -1454,6 +1479,35 @@ document.addEventListener("toggle", fitAll, true);   // textareas inside <detail
   new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => enhance(document.getElementById("view")), 60); })
     .observe(document.getElementById("view"), { childList: true, subtree: true });
   addEventListener("hashchange", () => { if (active) active.rec.stop(); });
+})();
+
+// ------------------------------------------------------------ phones: behave like an app, not a web page
+(function phone() {
+  const root = document.documentElement;
+  const inApp = /StagHuntApp/.test(navigator.userAgent);
+  if (inApp) root.classList.add("inapp");
+  // While the keyboard is up, the tab bar and the Yes/No bar step aside so the field has the room
+  const typing = (el) => el && el.matches && el.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=button]):not([type=submit])');
+  const touch = matchMedia("(hover: none) and (pointer: coarse)");
+  let t;
+  addEventListener("focusin", (e) => { if (touch.matches && typing(e.target)) { clearTimeout(t); root.classList.add("kb"); } });
+  addEventListener("focusout", () => { clearTimeout(t); t = setTimeout(() => { if (!typing(document.activeElement)) root.classList.remove("kb"); }, 120); });
+  // Files (your record, the Excel sheet): the iPhone app can't "download", so hand the file to the share sheet instead
+  document.addEventListener("click", async (e) => {
+    const a = e.target.closest && e.target.closest("a[download]");
+    if (!a || !inApp || !navigator.canShare) return;
+    e.preventDefault();
+    try {
+      const res = await fetch(a.href, { credentials: "same-origin" });
+      if (!res.ok) throw new Error("Couldn't get the file. Try again.");
+      const blob = await res.blob();
+      const named = /filename="?([^";]+)/.exec(res.headers.get("content-disposition") || "");
+      const name = (named && named[1]) || a.getAttribute("download") || a.pathname.split("/").pop() || "stag-hunt";
+      const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
+      if (!navigator.canShare({ files: [file] })) throw new Error("Open staghunts.com in Safari to save this file.");
+      await navigator.share({ files: [file] });
+    } catch (err) { if (err.name !== "AbortError") toast(err.message); }
+  });
 })();
 
 // ------------------------------------------------------------ custom dropdowns (native menus can't be styled)
@@ -1648,7 +1702,7 @@ async function showLinks(fresh) {
       catch { const i = $("input", row); i.select(); toast("Select the link and copy it."); }
     }
     if (act === "remove") {
-      if (!confirm(l.done_at ? "Remove this pitch and delete its transcript?" : "Remove this link? It stops working right away.")) return;
+      if (!(await ask(l.done_at ? "Remove this pitch and delete its transcript?" : "Remove this link? It stops working right away."))) return;
       try { await api(`/api/rec/${l.id}/delete`, {}); showLinks(); } catch (err) { msg.textContent = err.message; }
     }
     if (act === "draft") {
@@ -1692,7 +1746,7 @@ async function startRecorder() {
   const close = () => { clearInterval(tick); ov.remove(); document.body.classList.remove("recording"); };
 
   $(".rec-cancel", ov).onclick = async () => {
-    if (!confirm("Stop recording and delete everything captured so far?")) return;
+    if (!(await ask("Stop recording and delete everything captured so far?"))) return;
     cap.stop(); close();
     try { await api(`/api/rec/${rec.id}/delete`, {}); } catch {}
     toast("Recording deleted.");
