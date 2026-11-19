@@ -1516,16 +1516,19 @@ function showStatement(canClose = false) {
   return new Promise(async (resolve) => {
     const st = await api("/api/statement");
     const o = document.createElement("div");
-    o.className = "terms-overlay";
-    o.innerHTML = `<div class="terms-card" role="dialog" aria-modal="true" aria-labelledby="st-h">
+    o.className = "terms-overlay stwrap";
+    const titles = { income: "Income", net_worth: "Net worth", license: "License", entity: "Through an entity", none: "Not accredited" };
+    o.innerHTML = `<div class="terms-card stcard" role="dialog" aria-modal="true" aria-labelledby="st-h">
       <div class="tag">Investor statement</div>
       <h2 id="st-h">One step before deals</h2>
-      <p>Founders share their rounds here in confidence, and the law lets them share only with the right people. Which of these is true for you?</p>
+      <p class="stlead">Founders share their rounds here in confidence, and the law lets them share only with accredited investors.</p>
       <form id="st-form">
-        <div class="stbases">${Object.entries(st.bases).map(([k, t]) => `<label class="check stbase"><input type="radio" name="basis" value="${k}" ${state.me.accredited === k ? "checked" : ""} required> ${esc(t)}</label>`).join("")}</div>
-        <div class="stpromises">${st.promises.map((t, i) => `<label class="check"><input type="checkbox" data-i="${i}" required> ${esc(t)}</label>`).join("")}</div>
+        <div class="stq">Which is true for you?</div>
+        <div class="stopts" role="radiogroup">${Object.entries(st.bases).map(([k, t]) => `<label class="stopt"><input type="radio" name="basis" value="${k}" ${state.me.accredited === k ? "checked" : ""} required><span class="stmark"></span><span class="sttxt"><b>${esc(titles[k] || k)}</b><span>${esc(t)}</span></span></label>`).join("")}</div>
+        <div class="stq">And you agree</div>
+        <div class="stopts stpromises">${st.promises.map((t, i) => `<label class="stopt"><input type="checkbox" data-i="${i}" required><span class="stmark sq"></span><span class="sttxt"><span>${esc(t)}</span></span></label>`).join("")}</div>
         <button class="btn block" type="submit">Save my statement</button>
-        ${canClose ? '<button class="link small" type="button" id="st-close" style="margin-top:10px">Not now</button>' : ""}
+        ${canClose ? '<button class="link small stclose" type="button" id="st-close">Not now</button>' : ""}
         <div class="msg err"></div>
       </form>
     </div>`;
