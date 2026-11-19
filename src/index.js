@@ -147,11 +147,13 @@ async function route(request, env, ctx, url) {
   const me = await currentUser(request, env);
   if (!me) throw new HttpError(401, "signed_out", "Please sign in.");
 
-  if (me.role === "observer" && m === "POST" && !/^\/api\/(me(\/(photo|notifications|terms))?|passkey\/register\/(options|verify)|passkeys\/[^/]+\/delete|auth\/logout|me\/(delete|test-email|api-key(\/delete)?|record-link(\/delete)?))$/.test(p))
+  if (me.role === "observer" && m === "POST" && !/^\/api\/(me(\/(photo|notifications|terms|statement))?|passkey\/register\/(options|verify)|passkeys\/[^/]+\/delete|auth\/logout|me\/(delete|test-email|api-key(\/delete)?|record-link(\/delete)?))$/.test(p))
     throw new HttpError(403, "observer", "Observers can read but not post.");
   if (m === "GET" && p === "/api/ws") return connectWs(request, env, me);
   if (m === "POST" && p === "/api/me") return updateMe(request, env, me);
   if (m === "POST" && p === "/api/me/terms") { await env.DB.prepare("UPDATE users SET terms_accepted_at = ? WHERE id = ?").bind(now(), me.id).run(); return json({ ok: true }); }
+  if (m === "GET" && p === "/api/statement") return json(STATEMENT);
+  if (m === "POST" && p === "/api/me/statement") return makeStatement(request, env, me);
   if (m === "POST" && p === "/api/me/notifications") return updateNotifications(request, env, me);
   if (m === "POST" && p === "/api/me/test-email") return sendTestEmails(env, me, !!(await request.json().catch(() => ({}))).sample);
   if (m === "GET" && p === "/api/me/history") return myHistory(env, me);
@@ -186,6 +188,12 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && (mt = p.match(/^\/api\/rec\/([0-9a-f-]{36})\/draft$/))) return draftFromRecording(env, me, mt[1]);
   if (m === "POST" && (mt = p.match(/^\/api\/rec\/([0-9a-f-]{36})\/delete$/))) return deleteRecording(env, me, mt[1]);
   if (m === "POST" && (mt = p.match(/^\/api\/rec\/([0-9a-f-]{36})\/fill$/))) return fillFromRecording(env, me, mt[1]);
+  // Deals only for cleared accounts (I16). Whoever brought a deal always sees their own.
+  if ((mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})(\/|$)/)) && !cleared(me)) {
+    const d = await env.DB.prepare("SELECT poster_id FROM deals WHERE id = ?").bind(mt[1]).first();
+    if (!d || d.poster_id !== me.id) notCleared(me);
+  }
+  if (/^\/api\/(inbound|export\.csv)/.test(p) && !cleared(me)) notCleared(me);
   if ((mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})$/))) {
     if (m === "GET") return getDeal(env, me, mt[1]);
     if (m === "POST") return updateDeal(request, env, me, mt[1]);
@@ -397,7 +405,8 @@ function publicUser(u) {
     terms_accepted_at: u.terms_accepted_at ?? null, notify_deals: u.notify_deals !== 0, notify_digest: u.notify_digest !== 0,
     headline: u.headline || "", location: u.location || "", bio: u.bio || "", focus: u.focus || "", check_size: u.check_size || "",
     tier: u.tier ?? null, thesis: u.thesis || "", involvement: u.involvement || "",
-    linkedin: u.linkedin || "", twitter: u.twitter || "", website: u.website || "", photo_at: u.photo_at ?? null, cohort: u.cohort ?? null };
+    linkedin: u.linkedin || "", twitter: u.twitter || "", website: u.website || "", photo_at: u.photo_at ?? null, cohort: u.cohort ?? null,
+    accredited: u.accredited ?? null, statement_at: u.statement_at ?? null, deals_open_at: dealsOpenAt(u) };
 }
 
 async function updateMe(request, env, me) {
@@ -538,7 +547,7 @@ async function getMember(env, id, me) {
     return Object.values(m).sort((a, b) => b.yes - a.yes || b.n - a.n).slice(0, 5);
   };
   const taste = { calls: calls.length, yes: calls.filter((c) => c.yes).length, sectors: tally("sector"), rounds: tally("round_type") };
-  return json({ member: me.role === "admin" ? results[0] : hideEmail(results[0], me), deals, taste });
+  return json({ member: me.role === "admin" ? results[0] : hideEmail(results[0], me), deals: cleared(me) || id === me.id ? deals : [], taste });
 }
 
 const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.role, u.network, u.created_at, u.last_login,
@@ -839,10 +848,64 @@ function dollars(v) {
   const n = Math.round(Number(m[1]) * ({ k: 1e3, thousand: 1e3, m: 1e6, mm: 1e6, million: 1e6 }[(m[2] || "").toLowerCase()] || 1));
   return n >= 1 && n <= 1e10 ? n : null;
 }
+// Deals go only to cleared accounts (I16): an investor statement saying they're accredited and will keep deals
+// confidential, and, for accounts made after sign-up opened, 30 days since that statement. The wait follows the
+// SEC's no-action letters on online platforms (Lamp Technologies, Citizen VC): a relationship before any offering.
+const OPEN_SIGNUP_AT = 1795118886;          // Nov 19, 2026: accounts from before were approved by hand
+const DEAL_WAIT = 30 * 86400;
+const dealsOpenAt = (u) => (u.role === "admin" ? 0 : !u.accredited || u.accredited === "none" ? null
+  : u.created_at < OPEN_SIGNUP_AT ? 0 : (u.statement_at || now()) + DEAL_WAIT);
+const cleared = (u) => { const t = dealsOpenAt(u); return t !== null && t <= now(); };
+const clearedSql = () => `(role = 'admin' OR (accredited IS NOT NULL AND accredited != 'none' AND (created_at < ${OPEN_SIGNUP_AT} OR statement_at <= ${now() - DEAL_WAIT})))`;
+function notCleared(me) {
+  const t = dealsOpenAt(me);
+  throw new HttpError(403, "not_cleared", t !== null ? `Deals open for you on ${longDate(t)}, 30 days after your investor statement.`
+    : me.accredited === "none" ? "Deals are only for accredited investors. You can still bring deals." : "Fill in your investor statement to see deals.");
+}
+const longDate = (t) => new Date(t * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+
 const seesAll = (me) => me.role !== "member" || !me.tier;
-const fits = (me, d) => seesAll(me) || d.min_tier == null || d.min_tier <= me.tier || d.poster_id === me.id;
+const fits = (me, d) => d.poster_id === me.id || (cleared(me) && (seesAll(me) || d.min_tier == null || d.min_tier <= me.tier));
 // The same rule as SQL, for queries with a LIMIT (deals table aliased as d; me.id is a server-made id)
-const fitsSql = (me) => (seesAll(me) ? "1" : `(d.min_tier IS NULL OR d.min_tier <= ${Number(me.tier)} OR d.poster_id = '${String(me.id).replace(/[^0-9a-zA-Z-]/g, "")}')`);
+const fitsSql = (me) => {
+  const mine = `d.poster_id = '${String(me.id).replace(/[^0-9a-zA-Z-]/g, "")}'`;
+  if (!cleared(me)) return `(${mine})`;
+  return seesAll(me) ? "1" : `(d.min_tier IS NULL OR d.min_tier <= ${Number(me.tier)} OR ${mine})`;
+};
+
+// The investor statement (I16). Its exact wording is stored with every statement, so changing it means a new version.
+const STATEMENT = {
+  version: "2026-11-19",
+  bases: {
+    income: "My income was over $200,000 in each of the last two years ($300,000 together with a spouse or partner), and I expect the same this year.",
+    net_worth: "My net worth is over $1 million, alone or with a spouse or partner, not counting my home.",
+    license: "I hold a Series 7, 65 or 82 license in good standing.",
+    entity: "I'm investing through an entity with over $5 million in assets, or one whose owners are all accredited investors.",
+    none: "None of these. I'm not an accredited investor.",
+  },
+  promises: [
+    "I'm at least 18.",
+    "I'll keep every deal, founder and term I see here confidential. I won't forward, post or share them outside Stag Hunt.",
+    "I understand Stag Hunt is not a broker, adviser or funding portal, gives no investment advice, and never holds money. Each company decides who may invest and checks it under its own documents.",
+    "What I've said is true, and I'll update it here if it changes.",
+  ],
+};
+
+async function makeStatement(request, env, me) {
+  const b = await readJson(request);
+  if (!Object.hasOwn(STATEMENT.bases, b.basis)) bad("Pick the line that fits you.");
+  if (!Array.isArray(b.agree) || !STATEMENT.promises.every((_, i) => b.agree[i] === true)) bad("Tick every box to go on.");
+  const t = now(), yes = b.basis !== "none";
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO investor_statements (user_id, version, basis, wording, at) VALUES (?, ?, ?, ?, ?)")
+      .bind(me.id, STATEMENT.version, b.basis, JSON.stringify({ basis: STATEMENT.bases[b.basis], promises: STATEMENT.promises }), t),
+    // The 30-day wait starts at the first statement that says accredited
+    env.DB.prepare("UPDATE users SET accredited = ?, statement_at = CASE WHEN statement_at IS NULL AND ? THEN ? ELSE statement_at END WHERE id = ?")
+      .bind(b.basis, yes ? 1 : 0, t, me.id),
+  ]);
+  const u = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first();
+  return json({ ok: true, user: publicUser(u) });
+}
 
 // Judge alone: a member sees others' calls only after making their own,
 // once a deal is past the scoring stage, or if they can't call it (observers, and whoever brought it).
@@ -1908,7 +1971,7 @@ async function sendMail(env, to, subject, text, html, extra = {}) {
 // A short heads-up to members when someone shares a new deal
 async function emailNewDeal(env, d) {
   const { results } = await env.DB.prepare(`SELECT email, name FROM users WHERE status = 'active' AND notify_deals = 1 AND id != ?
-    AND (role != 'member' OR tier IS NULL OR ? IS NULL OR tier >= ?)`).bind(d.poster_id, d.min_tier, d.min_tier).all();   // only members at this check size
+    AND (role != 'member' OR tier IS NULL OR ? IS NULL OR tier >= ?) AND ${clearedSql()}`).bind(d.poster_id, d.min_tier, d.min_tier).all();   // only members at this check size
   for (const u of results) await sendMail(env, u.email, ...newDealMail(env, d, u));
 }
 
@@ -1930,7 +1993,7 @@ async function sendWeeklyDigest(env) {
   const [newDeals, members, contributors] = await Promise.all([
     env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.min_tier, d.poster_id, COALESCE(u.name,u.email) AS poster
       FROM deals d JOIN users u ON u.id = d.poster_id WHERE d.created_at > ? ORDER BY d.created_at DESC`).bind(weekAgo).all(),
-    env.DB.prepare("SELECT id, email, name, role, tier FROM users WHERE status = 'active' AND notify_digest = 1").all(),
+    env.DB.prepare("SELECT id, email, name, role, tier, created_at, accredited, statement_at FROM users WHERE status = 'active' AND notify_digest = 1").all(),
     env.DB.prepare(`SELECT COALESCE(u.name,u.email) AS name, COUNT(*) AS n FROM deals d JOIN users u ON u.id = d.poster_id
       WHERE d.created_at >= ? GROUP BY d.poster_id ORDER BY n DESC`).bind(monthStart).all(),
   ]);

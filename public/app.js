@@ -308,6 +308,7 @@ async function viewHome(_, seq) {
   const pkBanner = `<div class="notice row between" id="pkbanner" hidden><span><b>Sign in with ${Passkey.name} next time.</b> One touch, no email.</span><span class="row"><button class="btn sm" id="pkset">Turn it on</button><button class="link small" id="pkhide">Not now</button></span></div><div id="installbanner" hidden></div>`;
   const n = o.nudges || {};
   const nudges = [
+    dealGate(),
     state.me.role === "member" && !state.me.tier ? `<div class="notice nudge">Pick your check size in <a href="#/profile">your profile</a>, so you only see deals you could invest in.</div>` : "",
     ...(n.locked_open || []).map((d) => `<div class="notice nudge"><b>You're locked in on ${esc(d.company)}.</b> <a href="#/deals/${d.id}#hunt">Log your investment</a> when it's done.</div>`),
     ...(n.look_back || []).map((d) => `<div class="notice nudge">It's been six months since <b>${esc(d.company)}</b>. <a href="#/deals/${d.id}#lookback">How did it turn out?</a></div>`),
@@ -357,7 +358,8 @@ async function viewDeals(_, seq) {
     const th = (k, label, cls = "") => `<th class="sort ${cls}" data-k="${k}">${label}${sort.k === k ? (sort.dir > 0 ? " ↑" : " ↓") : ""}</th>`;
     v.innerHTML = `
       <div class="pagehead"><div><h1>Deals</h1>${inHunt ? `<div class="small muted">${esc(huntTitle || "This hunt")} · <a href="#/deals">All hunts</a></div>` : ""}</div>
-        <div class="row"><a class="btn ghost hide-sm" href="/api/export.csv">Export to spreadsheet</a><a class="btn" href="#/deals/new">${icon("plus")} Share a deal</a></div></div>
+        <div class="row">${dealsOpen() ? '<a class="btn ghost hide-sm" href="/api/export.csv">Export to spreadsheet</a>' : ""}<a class="btn" href="#/deals/new">${icon("plus")} Share a deal</a></div></div>
+      ${dealGate()}
       <div class="filters">${[["all", "All", deals.length], ...(state.me.role === "observer" ? [] : [["unscored", "Needs my call", deals.filter(needsMyCall).length]]), ...Object.keys(STATUS).filter((s) => counts[s]).map((s) => [s, STATUS[s], counts[s]])]
         .map(([k, l, n]) => `<button data-f="${k}" class="${filter === k ? "on" : ""}">${l} · ${n}</button>`).join("")}</div>
       ${rows.length ? `<div class="dealcards">${rows.map((d) => `
@@ -1271,6 +1273,7 @@ async function viewProfile() {
       <label class="check"><input type="checkbox" id="n-deals" ${me.notify_deals ? "checked" : ""}> Email me new deals</label>
       <label class="check"><input type="checkbox" id="n-digest" ${me.notify_digest ? "checked" : ""}> Weekly digest on Mondays</label>
       <div class="setrow"><span class="small faint">See both emails as members get them</span><span class="row"><button class="link small" type="button" id="testmail">Send me a test</button><button class="link small" type="button" id="samplemail" title="A Monday digest filled with made-up numbers, to see every section">Send a sample</button></span></div>
+      <div class="setrow"><span class="small faint">Investor statement: ${me.accredited == null ? "not made yet" : me.accredited === "none" ? "not accredited" : "accredited"}</span><button class="link small" type="button" data-statement>${me.accredited == null ? "Make it" : "Update"}</button></div>
       <div class="setrow"><span class="small faint">${esc(me.email)}</span><button class="link small" type="button" id="logout">Sign out</button></div>
       <div class="setrow"><span class="small faint">Delete your account and everything in it</span><button class="link small" type="button" id="delacct">Delete account</button></div>
     </div></div>`;
@@ -1506,6 +1509,51 @@ function showTerms() {
   });
 }
 
+// ------------------------------------------------------------ investor statement
+// Deals go only to people who say they're accredited and will keep deals confidential; accounts made
+// after sign-up opened wait 30 days. The exact wording comes from the server and is kept with each statement.
+function showStatement(canClose = false) {
+  return new Promise(async (resolve) => {
+    const st = await api("/api/statement");
+    const o = document.createElement("div");
+    o.className = "terms-overlay";
+    o.innerHTML = `<div class="terms-card" role="dialog" aria-modal="true" aria-labelledby="st-h">
+      <div class="tag">Investor statement</div>
+      <h2 id="st-h">One step before deals</h2>
+      <p>Founders share their rounds here in confidence, and the law lets them share only with the right people. Which of these is true for you?</p>
+      <form id="st-form">
+        <div class="stbases">${Object.entries(st.bases).map(([k, t]) => `<label class="check stbase"><input type="radio" name="basis" value="${k}" ${state.me.accredited === k ? "checked" : ""} required> ${esc(t)}</label>`).join("")}</div>
+        <div class="stpromises">${st.promises.map((t, i) => `<label class="check"><input type="checkbox" data-i="${i}" required> ${esc(t)}</label>`).join("")}</div>
+        <button class="btn block" type="submit">Save my statement</button>
+        ${canClose ? '<button class="link small" type="button" id="st-close" style="margin-top:10px">Not now</button>' : ""}
+        <div class="msg err"></div>
+      </form>
+    </div>`;
+    document.body.appendChild(o);
+    const f = o.querySelector("#st-form");
+    if (canClose) o.querySelector("#st-close").onclick = () => { o.remove(); resolve(false); };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const go = f.querySelector("button[type=submit]"); go.disabled = true;
+      try {
+        const r = await api("/api/me/statement", { basis: f.basis.value, agree: [...f.querySelectorAll("[data-i]")].map((c) => c.checked) });
+        state.me = r.user; o.remove(); resolve(true);
+      } catch (err) { f.querySelector(".msg").textContent = err.message; go.disabled = false; }
+    };
+  });
+}
+const dealsOpen = () => state.me.deals_open_at !== null && state.me.deals_open_at * 1000 <= Date.now();
+function dealGate() {
+  if (dealsOpen()) return "";
+  const me = state.me, again = '<button class="link" type="button" data-statement>Update your statement</button>';
+  const when = me.deals_open_at && new Date(me.deals_open_at * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const msg = me.accredited == null ? `<b>Fill in your investor statement to see deals.</b> It takes a minute. <button class="link" type="button" data-statement>Start</button>`
+    : me.accredited === "none" ? `<b>Deals are only for accredited investors.</b> You can still bring deals, start hunts and build your profile. If that changes, ${again}.`
+    : `<b>Deals open for you on ${when}.</b> New accounts wait 30 days after their statement, which keeps founders' rounds private. You can bring deals and start hunts now.`;
+  return `<div class="notice nudge">${msg}</div>`;
+}
+document.addEventListener("click", async (e) => { if (e.target.closest("[data-statement]") && await showStatement(true)) router(); });
+
 // ------------------------------------------------------------ boot
 (async function boot() {
   const r = await fetch("/api/me", { credentials: "same-origin" });
@@ -1513,6 +1561,7 @@ function showTerms() {
   state.me = (await r.json()).user;
   document.body.classList.toggle("observer", state.me.role === "observer");
   if (!state.me.terms_accepted_at) await showTerms();
+  if (state.me.accredited == null) await showStatement();
   $("#app").hidden = false;
   renderMe();
   $("#menu").onclick = () => $("#app").classList.toggle("menu");

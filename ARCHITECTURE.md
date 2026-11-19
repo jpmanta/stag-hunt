@@ -1,6 +1,6 @@
 # Stag Hunt Architecture (the framework)
 
-The short version of the design (draft 1.1, November 19, 2026). Read it before any design change.
+The short version of the design (draft 1.2, November 19, 2026). Read it before any design change.
 
 ## The idea
 Many hunts on one network. A hunt is a group that shares deals (a Junto; a fund or angel group is a hunt too).
@@ -18,6 +18,8 @@ Every feature must trace to a first principle in section 2 of the artifact. One 
 - I8 Stag Hunt suggests, never decides. Every choice can be declined, or undone where undoing breaks no lock.
 - I9 No deal is ever shown publicly or advertised. Only signed-in members see deals.
 - I15 Anyone can make an account. Nobody approves, nominates or invites people onto the network; admins can only remove.
+- I16 A person sees deals only once cleared: a written statement that they're accredited and will keep deals confidential,
+  and, for accounts made after sign-up opened, 30 days since that statement. Whoever brought a deal always sees it.
 - I10 A founder decides who sees their deal. It leaves its home hunt only with the founder's yes.
 - I11 Every number drawn from a record is stored and shown with its sample size n.
 - I12 Nobody can change a locked call or confirmed outcome without it showing, the operator included.
@@ -25,7 +27,8 @@ Every feature must trace to a first principle in section 2 of the artifact. One 
 - I14 The code is public, so anyone can check that these rules run as written.
 
 ## Access (section 7.1), one function decides every read
-- can_see: check fits, and the person is in the home hunt or a hunt it was shared with, and it is released to them.
+- cleared: an accredited statement, plus 30 days for accounts made after sign-up opened (I16). Admins are cleared.
+- can_see: the person brought it, or they are cleared and the check fits, and the person is in the home hunt or a hunt it was shared with, and it is released to them.
 - can_call: can_see, the deal is in review, and the person did not bring it.
 - can_see_calls: can_see, and the person has made their own call or brought the deal.
 - share to another hunt: needs the founder's yes (I10).
@@ -35,7 +38,7 @@ The app, the API and the emails must all use the same rule.
 - 0 Live: one network, open sign-up, blind locked calls, check-size tiers, records and share links, API keys, outcome confirmation, digest, hunts.
 - 1 Proof: chained calls and outcomes, nightly fingerprint, record download (I12, I13). Built Nov 18.
 - 2 Sharing: hunt settings (sharing, listing, joining), shares with the founder's yes, new access rules.
-- 3 Sign-up: open sign-up built Nov 19. Still to do: accreditation statement, suggested hunts.
+- 3 Sign-up: open sign-up and the investor statement built Nov 19. Still to do: suggested hunts.
 - 4 Matching: founder needs, readable match score. Matching orders deals, it never hides them.
 - 5 Learning: signals with sample size n, proxies, logged suggestions, one in ten picked at random.
 - 6 Listing: public hunt pages. Existing groups and funds join.
@@ -43,7 +46,7 @@ Timing in the artifact: design by end of 2026, build after the holidays.
 
 ## Waiting on the lawyer (do not build past these)
 Accreditation self-statement, whether sharing a deal counts as advertising a round, public hunt records,
-pledges and syndicates, non-accredited members, and whether open sign-up with I9 keeps rounds out of general solicitation.
+pledges and syndicates, non-accredited members, and whether open sign-up with the statement and 30-day wait (I16) keeps rounds out of general solicitation under Rule 506(b).
 
 ## Where the live site stands against it (Nov 19)
 - Done: I1, I2, I3, I4, I5, I7, I9, outcome confirmation, records that follow the person.
@@ -58,4 +61,6 @@ pledges and syndicates, non-accredited members, and whether open sign-up with I9
   Members see each other's names, not email addresses; admins still see emails.
 - Not built: hunt settings, shares, signals, suggestions, matching, the outcome history table, knows_founders.
 - Known gap: pledges still exist; the lawyer question on them is open.
-- Known gap: until Phase 2 (sharing), anyone who signs up sees every deal their check size fits, not only their hunts'.
+- Investor statement built Nov 19 (migration 0028, I16): investor_statements is append only and keeps the exact wording
+  each person agreed to. fits and fitsSql in src/index.js apply it to every deal list, page, email, application and export.
+- Known gap: until Phase 2 (sharing), a cleared member sees every deal their check size fits, not only their hunts'.
