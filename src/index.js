@@ -209,18 +209,12 @@ async function route(request, env, ctx, url) {
     if (m === "POST") return renameHunt(request, env, me, mt[1]);
   }
   if (m === "POST" && (mt = p.match(/^\/api\/hunts\/([0-9a-f-]{36})\/(invite|uninvite|join|decline|leave)$/))) return huntAction(request, env, me, mt[1], mt[2]);
-  if (m === "GET" && p === "/api/nominations") return listNominations(env, me);
-  if (m === "POST" && p === "/api/nominations") return nominate(request, env, me);
-  if (m === "POST" && (mt = p.match(/^\/api\/nominations\/([0-9a-f-]{36})\/object$/))) return objectNomination(request, env, me, mt[1]);
   if (m === "GET" && p === "/api/export.csv") return exportCsv(env);
 
   // Admin
   if (p.startsWith("/api/admin/")) {
     if (me.role !== "admin") throw new HttpError(403, "forbidden", "Admins only.");
-    if (m === "POST" && p === "/api/admin/members") return addMember(request, env, me);
     if (m === "POST" && (mt = p.match(/^\/api\/admin\/members\/([0-9a-f-]{32,36})$/))) return editMember(request, env, me, mt[1]);
-    if (m === "POST" && (mt = p.match(/^\/api\/admin\/nominations\/([0-9a-f-]{36})$/))) return decideNomination(request, env, me, mt[1]);
-    if (m === "POST" && (mt = p.match(/^\/api\/admin\/requests\/([0-9a-f-]{36})$/))) return decideRequest(request, env, me, mt[1]);
     if (m === "POST" && (mt = p.match(/^\/api\/admin\/deals\/([0-9a-f-]{36})\/delete$/))) return deleteDeal(env, mt[1]);
     if (m === "POST" && (mt = p.match(/^\/api\/admin\/inbound\/([0-9a-f-]{36})\/delete$/))) { await env.DB.prepare("DELETE FROM applications WHERE id = ? AND status != 'posted'").bind(mt[1]).run(); return json({ ok: true }); }
   }
@@ -239,10 +233,8 @@ async function requestCode(request, env) {
     return json({ error: "rate_limited", message: "Too many requests. Try again later." }, 429);
   }
 
-  // Members only. Answer the same way for members and everyone else so the
-  // sign-in form never reveals who is a member.
-  const member = await env.DB.prepare("SELECT id FROM users WHERE email = ? AND status = 'active'").bind(email).first();
-  if (!member) return json({ ok: true });
+  // Anyone can make an account (Nov 19). Someone an admin removed gets the same answer but no code.
+  if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND status = 'removed'").bind(email).first()) return json({ ok: true });
 
   const t = now();
   const existing = await env.DB.prepare("SELECT sent_at FROM login_codes WHERE email = ?").bind(email).first();
@@ -310,7 +302,7 @@ async function verifyCode(request, env) {
     return json({ error: "wrong_code", message: left > 0 ? `Wrong code. ${left} tries left.` : "Too many wrong tries. Request a new code." }, 400);
   }
 
-  const user = await env.DB.prepare("SELECT * FROM users WHERE email = ? AND status = 'active'").bind(email).first();
+  const user = await signUp(env, email);
   if (!user) return json({ error: "code_expired", message: "That code has expired. Request a new one." }, 400);
   const s = await newSession(env, user.id, t);
   await env.DB.batch([
@@ -347,7 +339,7 @@ async function verifyLink(request, env) {
   const row = await env.DB.prepare("SELECT link_hash, expires_at FROM login_codes WHERE email = ?").bind(email).first();
   if (!row || !row.link_hash || row.expires_at < t) return fail();
   if (!timingSafeEqual(await sha256(`${env.AUTH_SECRET}:link:${email}:${token}`), row.link_hash)) return fail();
-  const user = await env.DB.prepare("SELECT * FROM users WHERE email = ? AND status = 'active'").bind(email).first();
+  const user = await signUp(env, email);
   if (!user) return fail();
   const s = await newSession(env, user.id, t);
   await env.DB.batch([
@@ -546,7 +538,7 @@ async function getMember(env, id, me) {
     return Object.values(m).sort((a, b) => b.yes - a.yes || b.n - a.n).slice(0, 5);
   };
   const taste = { calls: calls.length, yes: calls.filter((c) => c.yes).length, sectors: tally("sector"), rounds: tally("round_type") };
-  return json({ member: results[0], deals, taste });
+  return json({ member: me.role === "admin" ? results[0] : hideEmail(results[0], me), deals, taste });
 }
 
 const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.role, u.network, u.created_at, u.last_login,
@@ -569,28 +561,28 @@ const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.
           AND s.yes = (d.outcome IN ('breakout','on_track'))) AS calls_right
      FROM users u WHERE u.status = 'active'`;
 
+// Anyone can join, so members see each other's names, not email addresses (admins and the person themselves still do).
+const hideEmail = (u, me) => (u.id === me.id ? u : { ...u, email: "" });
+
 async function listMembers(env, me) {
   const since = now() - 30 * 86400;
   const { results } = await env.DB.prepare(MEMBERS_SQL + " ORDER BY u.created_at").bind(since).all();
   const observers = results.filter((u) => u.role === "observer");
-  return json({ members: me && me.role === "admin" ? results : results.filter((u) => u.role !== "observer"), observers: observers.map((u) => ({ id: u.id, name: u.name })) });
+  const shown = me && me.role === "admin" ? results : results.filter((u) => u.role !== "observer").map((u) => hideEmail(u, me));
+  return json({ members: shown, observers: observers.map((u) => ({ id: u.id, name: u.name })) });
 }
 
-async function addMember(request, env, me) {
-  const b = await readJson(request);
-  const email = normalizeEmail(b.email);
-  const name = clean(b.name, 80);
-  if (!email) bad("Enter a valid email.");
-  if (!name) bad("Name is required.");
-  const role = b.role === "admin" ? "admin" : b.role === "observer" ? "observer" : "member";
-  if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND status = 'active'").bind(email).first()) bad("That person is already a member.");
-  await admit(env, { email, name, role, invitedBy: me.id });
-  if (b.send_invite) await sendInvite(env, email, name, me, role === "observer");
+// Anyone can make an account (Nov 19): the first sign-in creates it. Someone an admin removed stays out.
+async function signUp(env, email, name) {
+  const find = () => env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
+  const u = await find();
+  if (u) return u.status === "active" ? u : null;
+  await admit(env, { email, name: name || email.split("@")[0], role: "member", invitedBy: null });
   await notify(env, { type: "changed", what: "members" });
-  return json({ ok: true });
+  return find();
 }
 
-// Lets someone in: brings back a past account with the same email, or creates one.
+// Creates an account (or brings back a past one with the same email) and puts it in the first hunt.
 async function admit(env, { email, name, role, invitedBy, keepName = false }) {
   const cohort = null;   // no more group labels (Nov 19)
   const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
@@ -797,12 +789,6 @@ async function claimApplication(env, me, id, action) {
   return json({ ok: true });
 }
 
-async function sendInvite(env, email, name, inviter, observer = false) {
-  const who = inviter.name || "A member";
-  await sendMail(env, email, `You're invited to ${env.APP_NAME}`,
-    `Hi ${name},\n\n${who} has added you to ${env.APP_NAME}, a new way to invest in early-stage companies: investors share every good deal they find, and each decides alone.${observer ? " You're joining as a guest: you can read everything, but you can't post or make calls on deals." : ""}\n\nSign in with this email address at https://staghunts.com/login. No password needed.\n\nDeals and terms shared in Stag Hunt stay among members.`,
-    inviteEmailHtml(env.APP_NAME, name, who, observer));
-}
 
 async function editMember(request, env, me, id) {
   const b = await readJson(request);
@@ -1351,95 +1337,8 @@ async function addUpdate(request, env, me, id) {
   return json({ ok: true });
 }
 
-// ---------------------------------------------------------------- nominations
 
-async function listNominations(env, me) {
-  const { results } = await env.DB.prepare(
-    `SELECT n.*, COALESCE(u.name,u.email) AS nominated_by_name,
-       (SELECT COUNT(*) FROM objections o WHERE o.nomination_id = n.id) AS objection_count,
-       EXISTS (SELECT 1 FROM objections o WHERE o.nomination_id = n.id AND o.member_id = ?) AS i_objected
-     FROM nominations n JOIN users u ON u.id = n.nominated_by ORDER BY n.status = 'open' DESC, n.created_at DESC LIMIT 100`
-  ).bind(me.id).all();
-  let objections = [];
-  if (me.role === "admin") {
-    objections = (await env.DB.prepare(
-      `SELECT o.nomination_id, o.reason, COALESCE(u.name,u.email) AS name FROM objections o JOIN users u ON u.id = o.member_id`).all()).results;
-  }
-  let requests = [];
-  if (me.role === "admin") requests = (await env.DB.prepare("SELECT * FROM join_requests WHERE status = 'open' ORDER BY created_at DESC LIMIT 100").all()).results;
-  return json({ nominations: results, objections, requests });
-}
-
-async function nominate(request, env, me) {
-  const b = await readJson(request);
-  const email = normalizeEmail(b.email);
-  const name = clean(b.name, 80);
-  const reason = clean(b.reason, 1000);
-  if (!email) bad("Enter a valid email.");
-  if (!name || !reason) bad("Add their name and why they belong.");
-  const member = await env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND status = 'active'").bind(email).first();
-  if (member) bad("That person is already a member.");
-  const open = await env.DB.prepare("SELECT 1 FROM nominations WHERE email = ? AND status = 'open'").bind(email).first();
-  if (open) bad("That person already has an open nomination.");
-  await env.DB.prepare("INSERT INTO nominations (id, email, name, reason, nominated_by, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(crypto.randomUUID(), email, name, reason, me.id, now()).run();
-  await emailAdmins(env, `${me.name || me.email} suggested ${name}`,
-    `${me.name || me.email} suggested ${name} (${email}) for Stag Hunt.\n\nWhy they belong: ${reason}\n\nApprove or decline: https://staghunts.com/app#/nominations`,
-    mailKicker(`${escHtml(me.name || me.email)} suggested someone`) + mailTitle(escHtml(name)) + mailNote(escHtml(email)) +
-    mailPara(escHtml(reason), 8) +
-    mailBtn("https://staghunts.com/app#/nominations", "Approve or decline"), me.id);
-  await notify(env, { type: "changed", what: "nominations" });
-  return json({ ok: true });
-}
-
-async function objectNomination(request, env, me, id) {
-  const b = await readJson(request);
-  if (b.withdraw) {
-    await env.DB.prepare("DELETE FROM objections WHERE nomination_id = ? AND member_id = ?").bind(id, me.id).run();
-  } else {
-    await env.DB.prepare(
-      "INSERT INTO objections (nomination_id, member_id, reason, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET reason = excluded.reason"
-    ).bind(id, me.id, clean(b.reason, 500), now()).run();
-  }
-  await notify(env, { type: "changed", what: "nominations" });
-  return json({ ok: true });
-}
-
-async function decideNomination(request, env, me, id) {
-  const b = await readJson(request);
-  const n = await env.DB.prepare("SELECT * FROM nominations WHERE id = ? AND status = 'open'").bind(id).first();
-  if (!n) throw new HttpError(404, "not_found", "Nomination not found.");
-  if (b.action === "approve") {
-    await admit(env, { email: n.email, name: n.name, role: "member", invitedBy: n.nominated_by });
-    await env.DB.prepare("UPDATE nominations SET status='approved', decided_at=? WHERE id=?").bind(now(), id).run();
-    if (b.send_invite !== false) await sendInvite(env, n.email, n.name, me);
-  } else if (b.action === "reject") {
-    await env.DB.prepare("UPDATE nominations SET status='rejected', decided_at=? WHERE id=?").bind(now(), id).run();
-  } else bad("Unknown action.");
-  await notify(env, { type: "changed", what: "nominations" });
-  await notify(env, { type: "changed", what: "members" });
-  return json({ ok: true });
-}
-
-async function decideRequest(request, env, me, id) {
-  const b = await readJson(request);
-  const r = await env.DB.prepare("SELECT * FROM join_requests WHERE id = ? AND status = 'open'").bind(id).first();
-  if (!r) throw new HttpError(404, "not_found", "Request not found.");
-  if (b.action === "approve" || b.action === "observe") {
-    // "observe" lets them in read-only: they can't post or make calls
-    const role = b.action === "observe" ? "observer" : "member";
-    await admit(env, { email: r.email, name: r.name, role, invitedBy: me.id, keepName: true });
-    await env.DB.prepare("UPDATE join_requests SET status=?, decided_at=? WHERE id=?").bind(role === "observer" ? "observer" : "approved", now(), id).run();
-    await sendInvite(env, r.email, r.name || "there", me, role === "observer");
-  } else if (b.action === "decline") {
-    await env.DB.prepare("UPDATE join_requests SET status='declined', decided_at=? WHERE id=?").bind(now(), id).run();
-  } else bad("Unknown action.");
-  await notify(env, { type: "changed", what: "nominations" });
-  await notify(env, { type: "changed", what: "members" });
-  return json({ ok: true });
-}
-
-// Membership decisions go to every admin, regardless of their email settings
+// Account requests go to every admin, regardless of their email settings
 async function emailAdmins(env, subject, text, rows, exceptId) {
   const { results } = await env.DB.prepare("SELECT id, email FROM users WHERE status = 'active' AND role = 'admin'").all();
   for (const a of results) if (a.id !== exceptId) await sendMail(env, a.email, subject, text, mailLayout(env.APP_NAME, rows, " Sent to admins.", false));
@@ -1882,15 +1781,6 @@ function codeEmailHtml(app, code, link) {
     mailCode(code) +
     mailNote("The link and code work once, for 10 minutes. Didn't ask for this? You can ignore this email.", 0));
 }
-function inviteEmailHtml(app, name, inviter, observer = false) {
-  return mailLayout(app,
-    mailTitle(`You're in, ${escHtml(name)}.`) +
-    mailPara(`${escHtml(inviter)} added you to ${escHtml(app)}, a new way to invest in early-stage companies: investors share every good deal they find, and each decides alone.`) +
-    (observer ? mailPara("You're joining as a guest. You can read everything, but you can't post or make calls on deals.") : "") +
-    mailPara("Sign in with this email address. No password needed.", 8) +
-    mailBtn("https://staghunts.com/login", "Sign in"), "", false);
-}
-
 function backupHtml(app, date) {
   const month = new Date(date + "T12:00:00Z").toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   return mailLayout(app,
@@ -2331,22 +2221,8 @@ async function googleCallback(request, env, url) {
     return redirectTo("/login?google=failed", clear);
   }
   const email = normalizeEmail(claims.email);
-  const user = email && await env.DB.prepare("SELECT * FROM users WHERE email = ? AND status = 'active'").bind(email).first();
-  if (!user) {
-    const removed = email && await env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND status = 'removed'").bind(email).first();
-    const already = email && await env.DB.prepare("SELECT 1 FROM join_requests WHERE email = ? AND (status = 'open' OR (status = 'declined' AND decided_at > ?))").bind(email, t - 30 * 86400).first();
-    if (email && !removed && !already) {
-      const name = clean(claims.name, 80) || email;
-      await env.DB.prepare("INSERT INTO join_requests (id, email, name, source, created_at) VALUES (?, ?, ?, 'google', ?)").bind(crypto.randomUUID(), email, name, t).run();
-      await emailAdmins(env, `${name} asked to join Stag Hunt`,
-        `${name} (${email}) signed in with Google but isn't a member yet. They can't see anything until you approve them.\n\nApprove or decline: https://staghunts.com/app#/nominations`,
-        mailKicker("Someone asked to join") + mailTitle(escHtml(name)) + mailNote(escHtml(email)) +
-        mailPara("They signed in with Google, so the email address is real. They can't see anything until you approve them.", 8) +
-        mailBtn("https://staghunts.com/app#/nominations", "Approve or decline"));
-      await notify(env, { type: "changed", what: "nominations" });
-    }
-    return redirectTo("/login?google=" + (removed ? "notmember" : "requested"), clear);
-  }
+  const user = email && await signUp(env, email, clean(claims.name, 80));
+  if (!user) return redirectTo("/login?google=notmember", clear);
   const s = await newSession(env, user.id, t);
   await env.DB.batch([
     env.DB.prepare("UPDATE users SET last_login = ?, name = COALESCE(name, ?) WHERE id = ?").bind(t, clean(claims.name, 80), user.id),

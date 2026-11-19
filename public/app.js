@@ -180,7 +180,7 @@ function renderNav() {
   const cur = currentPath();
   const items = [
     ["#/", "home", "Home"], ["#/deals", "deals", "Deals"], ["#/deals/new", "plus", "Share a deal"], ["#/inbound", "inbox", "Applications"],
-    "-", ["#/history", "chart", "Your record"], ["#/members", "members", "Members"], ["#/hunts", "hunts", "Hunts"], ["#/nominations", "nom", "Nominations"],
+    "-", ["#/history", "chart", "Your record"], ["#/members", "members", "Members"], ["#/hunts", "hunts", "Hunts"],
   ];
   if (state.me.role === "admin") items.push(["#/admin", "admin", "Admin"]);
   $("#nav").innerHTML = items.map((it) => {
@@ -200,7 +200,7 @@ function renderTabbar() {
     t("#/deals", "deals", "Deals", onDeals(cur)) +
     `<a href="#/deals/new" class="share ${cur === "#/deals/new" ? "on" : ""}" aria-label="Share a deal"><span class="ic">${icon("plus")}</span><span>Share</span></a>` +
     t("#/members", "members", "Members", cur.startsWith("#/members")) +
-    `<button type="button" id="more" class="${/^#\/(inbound|nominations|admin|profile|history|hunts)/.test(cur) ? "on" : ""}">${icon("more")}<span>More</span></button>`;
+    `<button type="button" id="more" class="${/^#\/(inbound|admin|profile|history|hunts)/.test(cur) ? "on" : ""}">${icon("more")}<span>More</span></button>`;
   bar.querySelector("#more").onclick = () => $("#app").classList.toggle("menu");
   bar.querySelectorAll("a.on").forEach((a) => a.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" })));
 }
@@ -226,7 +226,6 @@ const routes = [
   [/^#\/members\/([0-9a-z-]{8,40})$/, (m) => viewMember(m[1])],
   [/^#\/hunts$/, viewHunts],
   [/^#\/hunts\/([0-9a-f-]{36})$/, (m, seq) => viewHunt(m[1], seq)],
-  [/^#\/nominations$/, viewNominations],
   [/^#\/admin$/, viewAdmin],
   [/^#\/profile$/, viewProfile],
   [/^#\/history$/, viewHistory],
@@ -877,8 +876,7 @@ async function viewMembers(_, seq) {
   if (seq !== renderSeq) return;
   const members = all;
   $("#view").innerHTML = `
-    <div class="pagehead"><div><h1>Members</h1></div>
-      <a class="btn ghost" href="#/nominations">Nominate someone</a></div>
+    <div class="pagehead"><div><h1>Members</h1></div></div>
     <div class="tablewrap"><table class="mtable"><thead><tr><th>Member</th><th class="num" title="Deals brought to the group">Deals</th><th class="num" title="Share of other members' deals at their check size they've said yes or no to">Calls made</th><th class="num" title="Promises they followed through on">Promises kept</th><th class="num" title="A yes on a company that did well, or a no on one that didn't">Good calls</th><th class="num">Invested</th></tr></thead><tbody>
     ${members.map((m) => {
       const called = m.scores_possible ? `${Math.min(100, Math.round((m.scores_on_others / m.scores_possible) * 100))}%` : "–";
@@ -1134,7 +1132,6 @@ async function apiKeyPanel(fresh) {
   if (del) del.onclick = async () => { if (!(await ask("Turn off your key? Anything using it stops updating."))) return; await api("/api/me/api-key/delete", {}); apiKeyPanel(); };
 }
 
-// ------------------------------------------------------------ nominations
 // ------------------------------------------------------------ hunts
 // A hunt is a group that shares deals. One account can be in many.
 async function viewHunts(_, seq) {
@@ -1197,51 +1194,6 @@ async function viewHunt(id, seq) {
   live(router, (ev) => ev.what === "hunts");
 }
 
-async function viewNominations(_, seq) {
-  const { nominations, objections, requests = [] } = await api("/api/nominations");
-  if (seq !== renderSeq) return;
-  const admin = state.me.role === "admin";
-  const open = nominations.filter((n) => n.status === "open"), past = nominations.filter((n) => n.status !== "open");
-  const objFor = (id) => objections.filter((o) => o.nomination_id === id);
-  $("#view").innerHTML = `
-    <div class="pagehead"><div><h1>Nominations</h1></div></div>
-    <div class="two">
-      <div class="stack-lg">
-        ${admin && requests.length ? `<div class="panel"><div class="ph"><h3>Asked to join</h3><span class="small faint">Only admins see this</span></div><div class="list">${requests.map((r) => `
-          <div style="display:block"><div class="row between"><div><b>${esc(r.name || r.email)}</b> <span class="faint small">${esc(r.email)}</span></div><span class="small faint">signed in with Google · ${ago(r.created_at)}</span></div>
-            <div class="row" style="margin-top:8px"><button class="btn sm" data-rq-approve="${r.id}">Approve + invite</button><button class="btn sm" data-rq-observe="${r.id}">Make observer</button><button class="btn danger sm" data-rq-decline="${r.id}">Decline</button></div>
-          </div>`).join("")}</div></div>` : ""}
-        <div class="panel"><div class="ph"><h3>Open</h3></div><div class="list">${open.length ? open.map((n) => `
-          <div style="display:block"><div class="row between"><div><b>${esc(n.name)}</b> <span class="faint small">${esc(n.email)}</span></div><span class="small faint">by ${esc(n.nominated_by_name)} · ${ago(n.created_at)}</span></div>
-            <div class="prose" style="font-size:15px;margin:6px 0">${esc(n.reason)}</div>
-            <div class="row"><span class="pill ${n.objection_count ? "pass" : "hit"}">${n.objection_count} objection${n.objection_count === 1 ? "" : "s"}</span>
-              <button class="btn ghost sm" data-obj="${n.id}" data-on="${n.i_objected ? 1 : 0}">${n.i_objected ? "Withdraw my objection" : "Object"}</button>
-              ${admin ? `<button class="btn sm" data-approve="${n.id}">Approve + invite</button><button class="btn danger sm" data-reject="${n.id}">Decline</button>` : ""}</div>
-            ${admin && objFor(n.id).length ? `<div class="small muted" style="margin-top:8px">${objFor(n.id).map((o) => `<div>${esc(o.name)}: ${esc(o.reason || "No reason given")}</div>`).join("")}</div>` : ""}
-          </div>`).join("") : '<div class="empty">No open nominations.</div>'}</div></div>
-        ${past.length ? `<div class="panel"><div class="ph"><h3>Decided</h3></div><div class="list">${past.map((n) => `<div><span class="grow">${esc(n.name)}</span><span class="pill ${n.status === "approved" ? "hit" : "pass"}">${n.status}</span></div>`).join("")}</div></div>` : ""}
-      </div>
-      <div class="panel"><div class="ph"><h3>Nominate someone</h3></div><div class="pb">
-        <form id="nomform"><label>Name</label><input name="name" required maxlength="80">
-          <label>Email</label><input name="email" type="email" required>
-          <label>Why they belong</label><textarea name="reason" required maxlength="1000" placeholder="Judgment, a network others can't see, and a real deal they could bring…"></textarea>
-          <button class="btn block" type="submit">Nominate</button><div class="msg err"></div></form>
-        <p class="small" style="margin-top:12px">The best way to show someone belongs: one real deal, explained, that only they could have found.</p></div></div>
-    </div>`;
-  const nf = $("#nomform");
-  nf.addEventListener("submit", (e) => { e.preventDefault(); submitting(nf, async () => { await api("/api/nominations", formData(nf)); nf.reset(); toast("Nomination posted"); }); });
-  $$("[data-obj]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.on === "1") await api(`/api/nominations/${b.dataset.obj}/object`, { withdraw: true });
-    else { const reason = await askText("Optional: why do you object? (Only admins see this.)", "", "Object"); if (reason === null) return; await api(`/api/nominations/${b.dataset.obj}/object`, { reason }); }
-  }));
-  $$("[data-approve]").forEach((b) => (b.onclick = async () => { if (await ask("Approve and email them an invite?")) await api(`/api/admin/nominations/${b.dataset.approve}`, { action: "approve" }); }));
-  $$("[data-reject]").forEach((b) => (b.onclick = async () => { if (await ask("Decline this nomination?")) await api(`/api/admin/nominations/${b.dataset.reject}`, { action: "reject" }); }));
-  $$("[data-rq-approve]").forEach((b) => (b.onclick = async () => { if (await ask("Approve and email them an invite?")) { await api(`/api/admin/requests/${b.dataset.rqApprove}`, { action: "approve" }); toast("Approved. Invite sent."); } }));
-  $$("[data-rq-observe]").forEach((b) => (b.onclick = async () => { if (await ask("Let them in as an observer? They can read everything but can't post or make calls. They'll get an invite email.")) { await api(`/api/admin/requests/${b.dataset.rqObserve}`, { action: "observe" }); toast("Added as an observer. Invite sent."); } }));
-  $$("[data-rq-decline]").forEach((b) => (b.onclick = async () => { if (await ask("Decline this request?")) await api(`/api/admin/requests/${b.dataset.rqDecline}`, { action: "decline" }); }));
-  live(() => router(), (ev) => ev.what === "nominations");
-}
-
 // ------------------------------------------------------------ admin
 async function viewAdmin(_, seq) {
   if (state.me.role !== "admin") throw new Error("Admins only.");
@@ -1250,21 +1202,13 @@ async function viewAdmin(_, seq) {
   $("#view").innerHTML = `
     <div class="pagehead"><div><h1>Manage members</h1></div></div>
     <div class="panel cohortpanel"><div class="pb">
-      <div class="ctitle">One network, no cap</div>
-      <div class="small muted" style="margin-top:4px">Everyone you approve joins. Check sizes decide who sees which deal, and hunts are how members group themselves.</div>
+      <div class="ctitle">Open to everyone</div>
+      <div class="small muted" style="margin-top:4px">Anyone can make an account. Check sizes decide who sees which deal, and hunts are how members group themselves. Removing someone signs them out everywhere and keeps them out; their past deals and calls stay.</div>
     </div></div>
     <div class="adminhead row between">
       <h3>Members <span class="faint small">${members.length}</span></h3>
-      <div class="row" style="gap:10px"><input id="msearch" type="search" placeholder="Search name or email" class="msearch"><button class="btn sm" id="addtoggle" type="button">Add a member</button></div>
+      <div class="row" style="gap:10px"><input id="msearch" type="search" placeholder="Search name or email" class="msearch"></div>
     </div>
-    <div class="panel addpanel" id="addpanel" hidden><div class="pb">
-      <form id="addform" class="addgrid"><div><label>Name</label><input name="name" required maxlength="80"></div>
-        <div><label>Email</label><input name="email" type="email" required></div>
-        <div><label>Role</label><select name="role"><option value="member">Member</option><option value="observer">Observer (read-only)</option><option value="admin">Admin</option></select></div>
-        <div class="addgo"><label class="check" style="margin:0"><input type="checkbox" name="send_invite" checked>Email an invite</label><button class="btn sm" type="submit">Add</button></div>
-        <div class="msg err" style="grid-column:1/-1"></div></form>
-      <p class="small muted" style="margin:6px 0 0">Removing someone signs them out everywhere; their past deals and calls stay.</p>
-    </div></div>
     <div class="mlist">
       <div class="mhead"><span>Member</span><span>Role</span><span></span></div>
       ${members.map((m) => `<div class="mrow" data-q="${esc((m.name + " " + m.email).toLowerCase())}">
@@ -1278,9 +1222,6 @@ async function viewAdmin(_, seq) {
       </div>`).join("")}
       <div class="empty" id="mnone" hidden>No one matches that search.</div>
     </div>`;
-  const af = $("#addform");
-  af.addEventListener("submit", (e) => { e.preventDefault(); submitting(af, async () => { await api("/api/admin/members", formData(af)); af.reset(); toast("Member added"); }); });
-  $("#addtoggle").onclick = () => { const p = $("#addpanel"); p.hidden = !p.hidden; if (!p.hidden) p.querySelector("input").focus(); };
   $("#msearch").oninput = (e) => { const q = e.target.value.trim().toLowerCase(); let n = 0;
     $$(".mrow").forEach((r) => { const hit = !q || r.dataset.q.includes(q); r.hidden = !hit; n += hit; }); $("#mnone").hidden = n > 0; };
   $$("[data-remove]").forEach((b) => (b.onclick = async () => { if (await ask(`Remove ${b.dataset.name} from Stag Hunt? They'll be signed out immediately.`)) await api("/api/admin/members/" + b.dataset.remove, { status: "removed" }); }));
