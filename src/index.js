@@ -403,10 +403,11 @@ async function updateMe(request, env, me) {
   const b = await readJson(request);
   const name = clean(b.name, 80);
   if (!name) bad("Name is required.");
-  const handle = (v) => { const h = clean(v, 120); if (!h) return null; const m = h.match(/^@?([A-Za-z0-9_]{1,15})$/); return m ? "https://x.com/" + m[1] : cleanUrl(h); };
+  if (String(b.tier ?? "").trim() && !dollars(b.tier)) bad("Check size should be an amount, like 25,000.");
+  const handle =(v) => { const h = clean(v, 120); if (!h) return null; const m = h.match(/^@?([A-Za-z0-9_]{1,15})$/); return m ? "https://x.com/" + m[1] : cleanUrl(h); };
   const f = { headline: clean(b.headline, 120), location: clean(b.location, 80), bio: clean(b.bio, 1000), focus: clean(b.focus, 200),
     linkedin: cleanUrl(b.linkedin), twitter: handle(b.twitter), website: cleanUrl(b.website),
-    tier: TIERS.includes(Number(b.tier)) ? Number(b.tier) : null, thesis: clean(b.thesis, 400),
+    tier: dollars(b.tier), thesis: clean(b.thesis, 400),
     involvement: INVOLVEMENT.includes(b.involvement) ? b.involvement : null };
   await env.DB.prepare(`UPDATE users SET name = ?, network = ?, headline = ?, location = ?, bio = ?, focus = ?, tier = ?, thesis = ?, involvement = ?, linkedin = ?, twitter = ?, website = ? WHERE id = ?`)
     .bind(name, clean(b.network, 500), f.headline, f.location, f.bio, f.focus, f.tier, f.thesis, f.involvement, f.linkedin, f.twitter, f.website, me.id).run();
@@ -876,9 +877,20 @@ const DEAL_LIST_SQL = `
 
 // Check-size tiers. A member sees deals whose smallest check is at or below their tier.
 // Admins, observers and members who haven't picked a tier see everything; posters always see their own.
-const TIERS = [5000, 50000, 100000, 250000, 500000, 1000000];
 const INVOLVEMENT = ["silent", "advice", "hands_on"];
-const tierLabel = (t) => (t >= 1000000 ? `$${t / 1000000}M` : `$${t / 1000}k`);
+const tierLabel = (t) => {             // $500, $7.5k, $25k, $12,345, $1.5M
+  const n = Number(t);
+  if (n >= 1e6 && n % 1e5 === 0) return `$${n / 1e6}M`;
+  if (n >= 1e3 && n % 100 === 0) return `$${n / 1e3}k`;
+  return "$" + n.toLocaleString("en-US");
+};
+// Any amount in dollars: "25000", "$25,000", "25k", "1.5M". Whole dollars from $1 to $10 billion.
+function dollars(v) {
+  const m = String(v ?? "").replace(/[,\s]/g, "").match(/^\$?(\d+(?:\.\d+)?)(k|thousand|m|mm|million)?$/i);
+  if (!m) return null;
+  const n = Math.round(Number(m[1]) * ({ k: 1e3, thousand: 1e3, m: 1e6, mm: 1e6, million: 1e6 }[(m[2] || "").toLowerCase()] || 1));
+  return n >= 1 && n <= 1e10 ? n : null;
+}
 const seesAll = (me) => me.role !== "member" || !me.tier;
 const fits = (me, d) => seesAll(me) || d.min_tier == null || d.min_tier <= me.tier || d.poster_id === me.id;
 // The same rule as SQL, for queries with a LIMIT (deals table aliased as d; me.id is a server-made id)
@@ -921,7 +933,7 @@ function dealFields(b, partial = false) {
     raise_amount: clean(b.raise_amount, 80),
     valuation_cap: clean(b.valuation_cap, 80),
     discount: clean(b.discount, 80),
-    min_tier: TIERS.includes(Number(b.min_tier)) ? Number(b.min_tier) : null,
+    min_tier: dollars(b.min_tier),
     min_check: clean(b.min_check, 80),
     deadline: clean(b.deadline, 40),
     accredited_only: b.accredited_only ? 1 : 0,
@@ -945,7 +957,7 @@ function dealFields(b, partial = false) {
     if (!f.round_type) bad("Pick the round type.");
     if (!f.how_found) bad("Say how you came across this deal.");
     if (!f.why_now) bad("Add a one-line why now.");
-    if (!f.min_tier) bad("Pick the smallest check the founder takes.");
+    if (!f.min_tier) bad("Add the smallest check the founder takes, like $25,000.");
   }
   if (f.min_tier) f.min_check = tierLabel(f.min_tier);
   return f;
@@ -1758,8 +1770,7 @@ function tierFromCheck(s) {
   const m = String(s || "").replace(/,/g, "").match(/\$?\s*(\d+(?:\.\d+)?)\s*(k|thousand|m|mm|million)?\b/i);
   if (!m) return null;
   const n = Number(m[1]) * ({ k: 1e3, thousand: 1e3, m: 1e6, mm: 1e6, million: 1e6 }[(m[2] || "").toLowerCase()] || 1);
-  if (!(n >= 1000)) return null;
-  return TIERS.find((t) => t >= n) || TIERS[TIERS.length - 1];
+  return n >= 1 && n <= 1e10 ? Math.round(n) : null;
 }
 async function interviewAvailable(env) {
   if (!env.ELEVENLABS_API_KEY || !env.INTERVIEW_AGENT_ID) return false;

@@ -49,8 +49,13 @@ const CATS = [
 const OLD_CATS = [["fmf", "Team fit"], ["market", "Market"], ["scarcity", "Hard to copy"], ["pmf", "Customers"], ["vibe", "Trust"]];
 const isTen = (s) => s.team != null;
 // Check-size tiers: each member sees deals whose smallest check is at or below theirs
-const TIERS = [5000, 50000, 100000, 250000, 500000, 1000000];
-const tierLabel = (t) => (t >= 1000000 ? `$${t / 1000000}M` : `$${t / 1000}k`);
+const tierLabel = (t) => {             // $500, $7.5k, $25k, $12,345, $1.5M
+  const n = Number(t);
+  if (n >= 1e6 && n % 1e5 === 0) return `$${n / 1e6}M`;
+  if (n >= 1e3 && n % 100 === 0) return `$${n / 1e3}k`;
+  return "$" + n.toLocaleString("en-US");
+};
+const money = (n) => (n ? Number(n).toLocaleString("en-US") : "");   // 25000 -> "25,000" for inputs
 const INVOLVEMENT = { silent: "Silent money", advice: "Advice when asked", hands_on: "Hands-on" };
 const hiddenPanel = (t) => `<div class="panel"><div class="ph"><h3>${t}</h3></div><div class="pb"><p class="small muted" style="margin:0">Hidden until you make your call, so everyone judges on their own.</p></div></div>`;
 // The group's call: how many want to meet the team
@@ -479,7 +484,7 @@ async function viewDealForm(id) {
         <div class="grid2"><div><label for="f-round_type">Type of round</label><select id="f-round_type" name="round_type" required>
           ${ROUNDS.map((r) => `<option ${d.round_type === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
           ${f("raise_amount", "How much are they raising?", { ph: "$1.5M" })}</div>
-        <div class="grid3">${f("valuation_cap", "Valuation cap", { ph: "$12M post" })}${f("discount", "Discount", { ph: "20%" })}<div><label for="f-min_tier">Smallest check they take</label><select id="f-min_tier" name="min_tier" required><option value="">Pick one</option>${TIERS.map((t) => `<option value="${t}" ${d.min_tier === t ? "selected" : ""}>${tierLabel(t)}</option>`).join("")}</select><div class="hint">Members see this deal if their check size is this or more.</div></div></div>
+        <div class="grid3">${f("valuation_cap", "Valuation cap", { ph: "$12M post" })}${f("discount", "Discount", { ph: "20%" })}<div><label for="f-min_tier">Smallest check they take ($)</label><input id="f-min_tier" name="min_tier" required inputmode="decimal" maxlength="20" placeholder="25,000" value="${money(d.min_tier)}"><div class="hint">Members see this deal if their check size is this or more.</div></div></div>
         <div class="grid2">${f("deadline", "When does it close?", { ph: "Nov 30, or rolling", max: 40 })}${hunts.length > 1
           ? `<div><label for="f-home_hunt">Which hunt is it for?</label><select id="f-home_hunt" name="home_hunt" required><option value="">Choose a hunt</option>${hunts.map((h) => `<option value="${h.id}">${esc(h.name)}</option>`).join("")}</select></div>`
           : "<div></div>"}</div>
@@ -920,7 +925,7 @@ async function viewMember(id) {
       </div>
       <div class="stack-lg">
         <div class="panel"><div class="pb pfacts">
-          ${[["Check size", m.tier ? tierLabel(m.tier) + (m.tier === 1000000 ? " or more" : "") : m.check_size], ["What they back", m.thesis], ["Involvement", INVOLVEMENT[m.involvement]], ["Brings", m.network], ["Focus", m.focus]]
+          ${[["Check size", m.tier ? tierLabel(m.tier) : m.check_size], ["What they back", m.thesis], ["Involvement", INVOLVEMENT[m.involvement]], ["Brings", m.network], ["Focus", m.focus]]
             .filter(([, v]) => v).map(([l, v]) => `<div><div class="l">${l}</div><div>${esc(v)}</div></div>`).join("") || '<div class="small muted">No details yet.</div>'}
         </div></div>
         ${tastePanel}
@@ -1295,8 +1300,8 @@ async function viewProfile() {
     <div class="pagehead"><div><h1>${welcome ? "Tell the group who you are" : "Your profile"}</h1></div>${welcome ? "" : `<a class="small" href="#/members/${esc(me.id)}">View my profile →</a>`}</div>
     <form id="pform" class="stack-lg" style="max-width:720px">
       <div class="panel"><div class="ph"><h3>How you invest</h3></div><div class="pb pgrid">
-        <div class="span2"><label for="pf-tier">Check size</label><select id="pf-tier" name="tier"><option value="">Pick one</option>${TIERS.map((t) => `<option value="${t}" ${me.tier === t ? "selected" : ""}>${tierLabel(t)}${t === 1000000 ? " or more" : ""}</option>`).join("")}</select>
-          <div class="hint">You'll see deals that take a check this size or smaller.</div></div>
+        <div class="span2"><label for="pf-tier">Check size ($)</label><input id="pf-tier" name="tier" inputmode="decimal" maxlength="20" placeholder="Any amount, like 25,000" value="${money(me.tier)}">
+          <div class="hint">Any amount. You'll see deals that take a check this size or smaller.</div></div>
         <div class="span2"><label for="pf-thesis">What you back</label><textarea id="pf-thesis" name="thesis" maxlength="400" rows="2" style="min-height:0" placeholder="e.g. Hardware companies that make factories cheaper to run. I pass on consumer apps.">${esc(me.thesis)}</textarea></div>
         <div class="span2">${field("focus", "Sectors", me.focus, 'maxlength="200" placeholder="Fintech, climate, developer tools"')}</div>
         <div class="span2"><label>How involved you like to be</label><div class="yesno three">${Object.entries(INVOLVEMENT).map(([k, l]) => `<label><input type="radio" name="involvement" value="${k}" ${me.involvement === k ? "checked" : ""}><span>${l}</span></label>`).join("")}</div></div>
