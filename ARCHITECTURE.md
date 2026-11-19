@@ -59,6 +59,8 @@ pledges and syndicates, non-accredited members, and whether open sign-up with th
 - Open sign-up built Nov 19 (I15): the first sign-in by email code, link or Google creates the account and puts it in
   the first hunt. Nominations, join requests and admin-added members are gone. A removed person stays out.
   Members see each other's names, not email addresses; admins still see emails.
+  Nobody is approved by hand: the nightly job (letInWaiting) lets in anyone still waiting from before sign-up
+  opened and emails them that they're in.
 - Not built: hunt settings, shares, signals, suggestions, matching, the outcome history table, knows_founders.
 - Known gap: pledges still exist; the lawyer question on them is open.
 - Investor statement built Nov 19 (migration 0028, I16): investor_statements is append only and keeps the exact wording

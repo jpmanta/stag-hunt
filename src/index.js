@@ -42,7 +42,7 @@ export default {
     ctx.waitUntil(cleanup(env));
     if (event.cron === "7 13 * * 1") ctx.waitUntil(sendWeeklyDigest(env));
     if (event.cron === "17 14 1 * *") ctx.waitUntil(sendMonthlyBackup(env));
-    if (event.cron === "23 4 * * *") ctx.waitUntil(sealLedger(env));
+    if (event.cron === "23 4 * * *") { ctx.waitUntil(sealLedger(env)); ctx.waitUntil(letInWaiting(env)); }
   },
 };
 
@@ -589,6 +589,26 @@ async function signUp(env, email, name) {
   await admit(env, { email, name: name || email.split("@")[0], role: "member", invitedBy: null });
   await notify(env, { type: "changed", what: "members" });
   return find();
+}
+
+// Anyone still waiting from before sign-up opened (a join request) is let in by the nightly job and told so.
+// Nobody approves anyone anymore (I15); a removed person stays out.
+async function letInWaiting(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT r.id, r.email, r.name FROM join_requests r WHERE r.status = 'open' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.email = r.email AND u.status = 'removed') LIMIT 50").all();
+  for (const r of results) {
+    const name = r.name || r.email.split("@")[0];
+    if (!(await env.DB.prepare("SELECT 1 FROM users WHERE email = ? AND status = 'active'").bind(r.email).first()))
+      await admit(env, { email: r.email, name, role: "member", invitedBy: null, keepName: true });
+    await env.DB.prepare("UPDATE join_requests SET status = 'approved', decided_at = ? WHERE id = ?").bind(now(), r.id).run();
+    await sendMail(env, r.email, `You're in, ${name}`,
+      `You asked to join ${env.APP_NAME}. It's now open to everyone, so you're in.\n\nSign in with this email address, no password needed: https://staghunts.com/login\n\nBefore you see deals, you'll make a short investor statement.`,
+      mailLayout(env.APP_NAME, mailTitle(`You're in, ${escHtml(name)}.`) +
+        mailPara(`You asked to join ${escHtml(env.APP_NAME)}. It's now open to everyone, so you're in.`) +
+        mailPara("Sign in with this email address, no password needed. Before you see deals, you'll make a short investor statement.", 8) +
+        mailBtn("https://staghunts.com/login", "Sign in"), "", false));
+  }
+  if (results.length) await notify(env, { type: "changed", what: "members" });
 }
 
 // Creates an account (or brings back a past one with the same email) and puts it in the first hunt.
