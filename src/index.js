@@ -147,7 +147,7 @@ async function route(request, env, ctx, url) {
   const me = await currentUser(request, env);
   if (!me) throw new HttpError(401, "signed_out", "Please sign in.");
 
-  if (me.role === "observer" && m === "POST" && !/^\/api\/(me(\/(photo|notifications|terms|statement|basics))?|passkey\/register\/(options|verify)|passkeys\/[^/]+\/delete|auth\/logout|me\/(delete|test-email|api-key(\/delete)?|record-link(\/delete)?))$/.test(p))
+  if (me.role === "observer" && m === "POST" && !/^\/api\/(me(\/(photo|notifications|terms|statement|basics))?|passkey\/register\/(options|verify)|passkeys\/[^/]+\/delete|auth\/logout|me\/(delete|test-email|api-key(\/delete)?|record-link(\/delete)?)|report|members\/[0-9a-z-]{8,40}\/(block|unblock))$/.test(p))
     throw new HttpError(403, "observer", "Observers can read but not post.");
   if (m === "GET" && p === "/api/ws") return connectWs(request, env, me);
   if (m === "POST" && p === "/api/me") return updateMe(request, env, me);
@@ -180,6 +180,8 @@ async function route(request, env, ctx, url) {
   if (m === "GET" && (mt = p.match(/^\/api\/members\/([0-9a-z-]{8,40})$/))) return getMember(env, mt[1], me);
   if (m === "GET" && (mt = p.match(/^\/api\/photo\/([0-9a-z-]{8,40})$/))) return getPhoto(env, mt[1]);
   if (m === "POST" && p === "/api/me/photo") return updatePhoto(request, env, me);
+  if (m === "POST" && p === "/api/report") return report(request, env, me);
+  if (m === "POST" && (mt = p.match(/^\/api\/members\/([0-9a-z-]{8,40})\/(block|unblock)$/))) return blockMember(env, me, mt[1], mt[2] === "block");
   if (m === "GET" && p === "/api/deals") return listDeals(env, me);
   if (m === "POST" && p === "/api/deals") return createDeal(request, env, me, ctx);
   if (m === "POST" && p === "/api/rec") return startRecording(request, env, me);
@@ -467,7 +469,7 @@ async function overview(env, me) {
               (SELECT COUNT(*) FROM scores s WHERE s.deal_id = d.id) AS score_count
        FROM deals d JOIN users u ON u.id = d.poster_id WHERE ${fitsSql(me)} ORDER BY d.created_at DESC LIMIT 5`).all(),
     env.DB.prepare(
-      `SELECT d.id, d.company FROM deals d WHERE d.status IN ('reviewing','founder_call') AND d.poster_id != ?1 AND ${fitsSql(me)}
+      `SELECT d.id, d.company, d.poster_id FROM deals d WHERE d.status IN ('reviewing','founder_call') AND d.poster_id != ?1 AND ${fitsSql(me)}
        AND NOT EXISTS (SELECT 1 FROM scores s WHERE s.deal_id = d.id AND s.member_id = ?1) ORDER BY d.created_at DESC`).bind(me.id).all(),
   ]);
   const [lockedOpen, lookBack] = await Promise.all([
@@ -481,8 +483,9 @@ async function overview(env, me) {
     WHERE d.pending_outcome IS NOT NULL AND d.pending_by != ?1
       AND (d.poster_id = ?1 OR EXISTS (SELECT 1 FROM scores s WHERE s.deal_id = d.id AND s.member_id = ?1)) ORDER BY d.pending_at LIMIT 5`).bind(me.id).all();
   const scorecard = await groupScorecard(env);
-  const scoredSet = await myScored(env, me);
-  return json({ totals: t, members: members.n, recent: recent.results.map((d) => hideScores(d, me, scoredSet)), to_score: toScore.results, scorecard,
+  const [scoredSet, blocked] = await Promise.all([myScored(env, me), blockedIds(env, me)]);
+  return json({ totals: t, members: members.n, recent: recent.results.filter((d) => !blocked.has(d.poster_id)).map((d) => hideScores(d, me, scoredSet)),
+    to_score: toScore.results.filter((d) => !blocked.has(d.poster_id)), scorecard,
     nudges: { locked_open: lockedOpen.results, look_back: lookBack.results, to_confirm: toConfirm.results } });
 }
 
@@ -548,7 +551,8 @@ async function getMember(env, id, me) {
     return Object.values(m).sort((a, b) => b.yes - a.yes || b.n - a.n).slice(0, 5);
   };
   const taste = { calls: calls.length, yes: calls.filter((c) => c.yes).length, sectors: tally("sector"), rounds: tally("round_type") };
-  return json({ member: me.role === "admin" ? results[0] : hideEmail(results[0], me), deals: cleared(me) || id === me.id ? deals : [], taste });
+  const blocked = (await blockedIds(env, me)).has(id);
+  return json({ member: me.role === "admin" ? results[0] : hideEmail(results[0], me), deals: cleared(me) || id === me.id ? deals : [], taste, blocked });
 }
 
 const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.role, u.network, u.created_at, u.last_login,
@@ -955,8 +959,8 @@ async function myScored(env, me) {
 
 async function listDeals(env, me) {
   const { results } = await env.DB.prepare(DEAL_LIST_SQL + " ORDER BY d.created_at DESC").all();
-  const scored = await myScored(env, me);
-  return json({ deals: results.filter((d) => fits(me, d)).map((d) => ({ ...hideScores(d, me, scored), i_scored: scored.has(d.id) })) });
+  const [scored, blocked] = await Promise.all([myScored(env, me), blockedIds(env, me)]);
+  return json({ deals: results.filter((d) => fits(me, d) && !blocked.has(d.poster_id)).map((d) => ({ ...hideScores(d, me, scored), i_scored: scored.has(d.id) })) });
 }
 
 // The company's own place to invest. Secure links only: members may follow it to sign and send money.
@@ -1182,7 +1186,10 @@ async function getDeal(env, me, id) {
   const nameOf = async (uid) => uid ? (await env.DB.prepare("SELECT COALESCE(name, email) AS n FROM users WHERE id = ?").bind(uid).first())?.n?.split("@")[0] || null : null;
   const [pendingName, outcomeName, confirmName] = await Promise.all([nameOf(deal.pending_by), nameOf(deal.outcome_by), nameOf(deal.outcome_confirmed_by)]);
   const outcomeInfo = { pending_name: pendingName, by_name: outcomeName, confirmed_name: confirmName, mine_pending: deal.pending_by === me.id };
-  return json({ deal: shown, scores: shown.scores_hidden ? [] : scores.results, investments: investments.results, updates: updates.results, intros: introInfo, pledges, outcome: outcomeInfo, can_edit: deal.poster_id === me.id || me.role === "admin" });
+  // Members you blocked: their calls, investments and updates don't show for you. Counts stay true.
+  const blocked = await blockedIds(env, me);
+  const keep = (rows) => rows.filter((x) => !blocked.has(x.member_id));
+  return json({ deal: { ...shown, poster_blocked: blocked.has(deal.poster_id) }, scores: shown.scores_hidden ? [] : keep(scores.results), investments: keep(investments.results), updates: keep(updates.results), intros: introInfo, pledges, outcome: outcomeInfo, can_edit: deal.poster_id === me.id || me.role === "admin" });
 }
 
 async function updateDeal(request, env, me, id) {
@@ -1434,6 +1441,57 @@ async function addUpdate(request, env, me, id) {
   return json({ ok: true });
 }
 
+
+// ---------------------------------------------------------------- report and block
+// Anyone signed in can report something posted on the site; admins get an email at once
+// and act within 24 hours. Blocking is the person's own choice (I8): what the blocked
+// member posts stops showing for them, and it can be undone from that member's page.
+
+async function blockedIds(env, me) {
+  const { results } = await env.DB.prepare("SELECT blocked_id FROM blocks WHERE user_id = ?").bind(me.id).all();
+  return new Set(results.map((r) => r.blocked_id));
+}
+
+async function blockMember(env, me, id, on) {
+  if (id === me.id) bad("You can't block yourself.");
+  if (on) {
+    const them = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+    if (!them) throw new HttpError(404, "not_found", "Member not found.");
+    await env.DB.prepare("INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)").bind(me.id, id, now()).run();
+  } else await env.DB.prepare("DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?").bind(me.id, id).run();
+  return json({ ok: true, blocked: on });
+}
+
+const REPORT_KINDS = { deal: "a deal", update: "an update", call: "a call", investment: "an investment note", member: "a member" };
+
+async function report(request, env, me) {
+  const b = await readJson(request);
+  const kind = b.kind, id = clean(b.id, 64), dealId = clean(b.deal, 64), reason = clean(b.reason, 1000);
+  if (!REPORT_KINDS[kind] || !id) bad("Nothing to report.");
+  if (!(await allow(env, `report:${me.id}`, 20, 86400))) return json({ error: "rate_limited", message: "That's a lot of reports today. Please email us instead." }, 429);
+  // Who posted it, what it says, and where to find it
+  const one = (sql, ...v) => env.DB.prepare(sql).bind(...v).first();
+  let row = null, link = "https://staghunts.com/app";
+  if (kind === "deal") { row = await one("SELECT poster_id AS about, company || ': ' || COALESCE(one_liner, '') AS text FROM deals WHERE id = ?", id); link += `#/deals/${id}`; }
+  if (kind === "update") { row = await one("SELECT member_id AS about, body AS text, deal_id FROM deal_updates WHERE id = ?", id); if (row) link += `#/deals/${row.deal_id}`; }
+  if (kind === "call") { row = await one("SELECT member_id AS about, why AS text FROM scores WHERE deal_id = ? AND member_id = ?", dealId, id); link += `#/deals/${dealId}`; }
+  if (kind === "investment") { row = await one("SELECT member_id AS about, note AS text FROM investments WHERE deal_id = ? AND member_id = ?", dealId, id); link += `#/deals/${dealId}`; }
+  if (kind === "member") { row = await one("SELECT id AS about, COALESCE(headline, '') || ' ' || COALESCE(bio, '') AS text FROM users WHERE id = ?", id); link += `#/members/${id}`; }
+  if (!row) throw new HttpError(404, "not_found", "That's no longer here.");
+  const target = kind === "call" || kind === "investment" ? `${dealId}:${id}` : id;
+  await env.DB.prepare("INSERT INTO reports (id, reporter_id, kind, target_id, about_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(crypto.randomUUID(), me.id, kind, target, row.about, reason || null, now()).run();
+  const about = await one("SELECT COALESCE(name, email) AS name, email FROM users WHERE id = ?", row.about);
+  const by = me.name || me.email, text = clean(row.text, 1500) || "(no text)";
+  await emailAdmins(env, `Stag Hunt: ${by} reported ${REPORT_KINDS[kind]}`,
+    `${by} <${me.email}> reported ${REPORT_KINDS[kind]} by ${about?.name} <${about?.email}>.\n\nWhat it says:\n${text}\n\nWhy:\n${reason || "(no reason given)"}\n\n${link}\n\nPlease look within 24 hours: remove it if it breaks the house rules, and remove the member if needed.`,
+    mailKicker("Report") + mailTitle(`${escHtml(by)} reported ${REPORT_KINDS[kind]}`) + mailNote(`Posted by ${escHtml(about?.name || "")} · ${escHtml(about?.email || "")}`) +
+    `<tr><td align="center" style="padding:0 0 16px;font:16px/1.65 Georgia,serif;color:#2E3445;white-space:pre-wrap">${escHtml(text)}</td></tr>` +
+    `<tr><td align="center" style="padding:0 0 16px;font:15px/1.6 Georgia,serif;color:#5A6072;white-space:pre-wrap">Why: ${escHtml(reason || "No reason given")}</td></tr>` +
+    `<tr><td align="center" style="padding:0 0 16px;font:15px/1.6 Georgia,serif;color:#5A6072">Please look within 24 hours.</td></tr>` +
+    mailBtn(link, "Open it"));
+  return json({ ok: true });
+}
 
 // Account requests go to every admin, regardless of their email settings
 async function emailAdmins(env, subject, text, rows, exceptId) {

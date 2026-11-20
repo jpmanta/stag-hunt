@@ -661,7 +661,8 @@ async function viewDeal(id, seq) {
     <div class="dealhead">
       <div><div class="row"><a href="#/deals" class="small">← Deals</a>${statusPill(d.status)}${d.accredited_only ? '<span class="pill">Accredited only</span>' : ""}${d.application_id ? '<span class="pill" title="The founder applied through staghunts.com">Founder applied</span>' : ""}${d.sector ? `<span class="pill">${esc(d.sector)}</span>` : ""}</div>
         <h1>${esc(d.company)}</h1><div class="one">${esc(d.one_liner)}</div>
-        <div class="small faint" style="margin-top:8px">Posted by <b>${esc(d.poster_name)}</b> · ${date(d.created_at)}${d.website ? ` · <a href="${esc(d.website)}" target="_blank" rel="noopener noreferrer">${esc(bareUrl(d.website))}</a>` : ""} · <button class="link small" type="button" id="sharedeal">Share link</button></div></div>
+        <div class="small faint" style="margin-top:8px">Posted by <b>${esc(d.poster_name)}</b> · ${date(d.created_at)}${d.website ? ` · <a href="${esc(d.website)}" target="_blank" rel="noopener noreferrer">${esc(bareUrl(d.website))}</a>` : ""} · <button class="link small" type="button" id="sharedeal">Share link</button>${brought ? "" : ` · ${reportBtn("deal", d.id, "", d.poster_id, d.poster_name)}`}</div>
+        ${d.poster_blocked ? `<div class="small muted" style="margin-top:6px">You blocked ${first}. <a href="#/members/${d.poster_id}">Unblock</a></div>` : ""}</div>
       <div class="bigscore"><div class="n">${tally(d)}</div><div class="small faint">${d.score_count} call${d.score_count === 1 ? "" : "s"}${d.scores_hidden || d.avg_total == null ? "" : ` · ten questions ${fmt1(d.avg_total)}/100`}</div><div style="margin-top:6px">${band(d)}${d.min_tier && state.me.tier && d.min_tier > state.me.tier ? ' <span class="pill" title="The smallest check here is above your tier">Above your check size</span>' : ""}</div>
         ${can_edit ? `<div class="row" style="justify-content:flex-end;margin-top:12px"><select id="status" style="width:auto;padding:6px 8px;font-size:13px">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}" ${d.status === k ? "selected" : ""}>${l}</option>`).join("")}</select>
           <a class="btn ghost sm" href="#/deals/${d.id}/edit">Edit</a>${state.me.role === "admin" ? '<button class="btn danger sm" id="del">Delete</button>' : ""}</div>` : ""}</div>
@@ -698,7 +699,7 @@ async function viewDeal(id, seq) {
 
         ${d.scores_hidden ? hiddenPanel("Everyone's calls") : ""}<div class="panel" ${d.scores_hidden ? "hidden" : ""}><div class="ph"><h3>Everyone's calls</h3>${scores.length ? `<span class="small muted">${d.yes_count} of ${scores.length} said yes${(() => { const m = scores.filter((s) => s.yes && s.met).length; return d.yes_count ? ` · ${m} of them met the team` : ""; })()}</span>` : ""}</div><div class="pb who">${scores.length ? scores.map((s) => `
           <div class="w"><div class="row between"><b>${esc(s.name)}${s.member_id === d.poster_id ? ' <span class="pill">Brought it</span>' : ""}</b><span class="row" style="gap:8px">${s.total != null ? `<span class="score">${s.total}<small>/100</small></span>` : ""}${callPill(s)}</span></div>
-            ${scoreReasons(s)}</div>`).join("") : '<div class="small muted">No calls yet.</div>'}</div></div>
+            ${scoreReasons(s)}${s.member_id !== state.me.id && s.why ? `<div style="text-align:right">${reportBtn("call", s.member_id, d.id, s.member_id, s.name)}</div>` : ""}</div>`).join("") : '<div class="small muted">No calls yet.</div>'}</div></div>
 
         ${!d.scores_hidden && scores.some(isTen) ? `<div class="panel"><div class="ph"><h3>The ten questions</h3><span class="small muted">Bar: average · outline: lowest to highest</span></div><div class="pb bars">${groupBars(scores)}</div></div>` : ""}
 
@@ -711,7 +712,7 @@ async function viewDeal(id, seq) {
         ${huntPanel(d, pl, myInv)}
         <div class="panel"><div class="ph"><h3>Who invested</h3></div><div class="pb">
           ${investments.length ? `<div class="who">${investments.map((i) => `<div class="w"><div class="row between"><b>${esc(i.name)}</b><span class="mono">${usd(i.amount_cents)}</span></div>
-            <div class="small muted">${i.invested_on ? esc(i.invested_on) + " · " : ""}Cash returned ${usd(i.realized_cents)}${i.paper_cents != null ? ` · Worth today ${usd(i.paper_cents)}` : ""}</div>${i.note ? `<div class="small" style="margin-top:4px">${esc(i.note)}</div>` : ""}</div>`).join("")}</div>
+            <div class="small muted">${i.invested_on ? esc(i.invested_on) + " · " : ""}Cash returned ${usd(i.realized_cents)}${i.paper_cents != null ? ` · Worth today ${usd(i.paper_cents)}` : ""}</div>${i.note ? `<div class="small" style="margin-top:4px">${esc(i.note)}${i.member_id !== state.me.id ? ` · ${reportBtn("investment", i.member_id, d.id, i.member_id, i.name)}` : ""}</div>` : ""}</div>`).join("")}</div>
             <div class="small muted" style="margin-top:10px">Totals: ${usd(d.invested_cents)} in · ${usd(totalRealized)} cash returned · ${usd(totalPaper)} paper value</div>` : '<div class="small muted">No one has logged an investment yet.</div>'}
           <details style="margin-top:14px"><summary class="small" style="cursor:pointer;color:var(--accent)">${myInv ? "Edit my investment" : "I invested"}</summary>
             <form id="invform" style="margin-top:6px">
@@ -730,7 +731,7 @@ async function viewDeal(id, seq) {
       <div class="panel"><div class="ph"><h3>Updates and lessons</h3></div><div class="pb">
         <form id="updform" class="stack"><textarea name="body" required maxlength="4000" placeholder="${myInv ? "How's it going? Share an update or a lesson…" : "Share news, research notes or lessons…"}"></textarea>
           <div class="row"><button class="btn sm" type="submit">Post update</button><span class="msg err"></span></div></form>
-        <div class="feed" style="margin-top:12px">${updates.length ? updates.map((u) => `<div class="u"><div class="small faint"><b style="color:var(--fg)">${esc(u.name)}</b> · ${ago(u.created_at)}</div><div class="prose" style="font-size:15px">${linkify(u.body)}</div></div>`).join("") : '<div class="small muted">No updates yet.</div>'}</div>
+        <div class="feed" style="margin-top:12px">${updates.length ? updates.map((u) => `<div class="u"><div class="small faint"><b style="color:var(--fg)">${esc(u.name)}</b> · ${ago(u.created_at)}${u.member_id !== state.me.id ? ` · ${reportBtn("update", u.id, d.id, u.member_id, u.name)}` : ""}</div><div class="prose" style="font-size:15px">${linkify(u.body)}</div></div>`).join("") : '<div class="small muted">No updates yet.</div>'}</div>
       </div></div>
     </div>
     ${!mine && state.me.role !== "observer" ? `<div class="callbar" id="callbar" aria-hidden="true"><span>Want to meet the team?</span><button type="button" data-pick="yes">Yes</button><button type="button" data-pick="no">No</button></div>` : ""}`;
@@ -907,7 +908,7 @@ async function viewMembers(_, seq) {
 // ------------------------------------------------------------ one member's profile
 async function viewMember(id) {
   const seq = renderSeq;
-  const { member: m, deals, taste = { calls: 0, yes: 0, sectors: [], rounds: [] } } = await api("/api/members/" + id);
+  const { member: m, deals, taste = { calls: 0, yes: 0, sectors: [], rounds: [] }, blocked } = await api("/api/members/" + id);
   if (seq !== renderSeq) return;
   const mine = m.id === state.me.id;
   // What they actually back, learned from every yes and no
@@ -927,8 +928,9 @@ async function viewMember(id) {
         ${m.headline ? `<div class="headline">${esc(m.headline)}</div>` : ""}
         <div class="small muted">${[m.location, `Member since ${date(m.created_at)}`].filter(Boolean).map(esc).join(" · ")}</div>
         ${links.length ? `<div class="proflinks">${links.map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${l}</a>`).join("")}</div>` : ""}</div>
-      ${mine ? '<a class="btn ghost sm" href="#/profile">Edit profile</a>' : `<a class="btn ghost sm" href="mailto:${esc(m.email)}">Email</a>`}
+      ${mine ? '<a class="btn ghost sm" href="#/profile">Edit profile</a>' : `<div class="row" style="gap:8px">${m.email ? `<a class="btn ghost sm" href="mailto:${esc(m.email)}">Email</a>` : ""}<button class="btn ghost sm" type="button" id="blockbtn">${blocked ? "Unblock" : "Block"}</button></div>`}
     </div>
+    ${mine ? "" : `<div class="small" style="margin:-6px 0 16px">${blocked ? `<span class="muted">You blocked ${esc(firstName(m.name))}. What they post doesn't show for you.</span> · ` : ""}${reportBtn("member", m.id, "", m.id, m.name)}</div>`}
     ${m.deals_posted || m.scores_on_others || m.pledges_locked || m.calls ? `<div class="pstats">
       ${stat("Deals brought", m.deals_posted)}
       ${stat("Made a call", m.scores_possible ? Math.min(100, Math.round((m.scores_on_others / m.scores_possible) * 100)) + "%" : "–")}
@@ -948,8 +950,35 @@ async function viewMember(id) {
         ${tastePanel}
       </div>
     </div>`;
+  $("#blockbtn")?.addEventListener("click", () => setBlock(m.id, m.name, !blocked));
   live(() => router(), (ev) => ev.what === "members");
 }
+
+// ------------------------------------------------------------ report and block
+// Anyone can report something posted here; an admin looks within 24 hours. Blocking someone
+// hides what they post, for you only, and can be undone from their page.
+const reportBtn = (kind, id, deal, who, name) =>
+  `<button class="link small rep" type="button" data-report="${kind}" data-id="${esc(id)}" data-deal="${esc(deal)}" data-who="${esc(who)}" data-name="${esc(firstName(name))}">Report</button>`;
+
+async function setBlock(id, name, on) {
+  const first = firstName(name);
+  if (on && !(await ask(`Block ${first}? What ${first} posts stops showing for you. ${first} isn't told, and you can unblock any time from this page.`, "Block"))) return;
+  await api(`/api/members/${id}/${on ? "block" : "unblock"}`, {});
+  toast(on ? `${first} is blocked.` : `${first} is unblocked.`);
+  router();
+}
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-report]");
+  if (!b) return;
+  const { report: kind, id, deal, who, name } = b.dataset;
+  const reason = await askText(`Report this to Stag Hunt? Tell us what's wrong (optional). An admin looks within 24 hours.`, "", "Report");
+  if (reason === null) return;
+  try { await api("/api/report", { kind, id, deal, reason }); } catch (err) { toast(err.message); return; }
+  if (who && who !== state.me.id && (await ask(`Thanks, it's reported. Block ${name} too? What ${name} posts stops showing for you.`, "Block"))) {
+    await api(`/api/members/${who}/block`, {}); toast(`${name} is blocked.`); router();
+  } else toast("Thanks, it's reported.");
+});
 
 // ------------------------------------------------------------ your record
 async function viewHistory(_, seq) {

@@ -742,3 +742,5 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 @media (prefers-reduced-motion:no-preference) and (min-width:641px){
   .sheet{animation:cardin .45s var(--ease-out) both}
 }
+.link.rep{color:var(--faint);text-decoration:none;font-size:12.5px}
+.link.rep:hover{color:var(--muted);text-decoration:underline}
