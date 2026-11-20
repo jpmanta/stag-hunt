@@ -1533,6 +1533,7 @@ function showStatement(canClose = false) {
         <label for="st-tier">Largest check you'd write <span class="faint">(optional)</span></label><input id="st-tier" name="tier" inputmode="decimal" maxlength="20" placeholder="Any amount, like 25,000" value="${me.tier ? esc(String(me.tier)) : ""}">
         <div class="hint">You'll see deals that take a check this size or smaller. Leave it empty to see every deal.</div>
         <button class="btn block" type="submit">Continue</button>
+        <button class="link small stclose st-out" type="button">Sign out</button>
         <div class="msg err"></div>
       </form>` : ""}
       <form id="st-form" class="ststep" ${isNew ? "hidden" : ""}>
@@ -1546,7 +1547,7 @@ function showStatement(canClose = false) {
         <div class="stq">And you agree</div>
         <div class="stopts stpromises">${st.promises.map((t, i) => `<label class="stopt"><input type="checkbox" data-i="${i}" required><span class="stmark sq"></span><span class="sttxt"><span>${linked(t)}</span></span></label>`).join("")}</div>
         <button class="btn block" type="submit">${isNew ? "Join Stag Hunt" : "Save my statement"}</button>
-        ${isNew ? '<button class="link small stclose" type="button" id="st-back">Back</button>' : canClose ? '<button class="link small stclose" type="button" id="st-close">Not now</button>' : ""}
+        ${isNew ? '<button class="link small stclose" type="button" id="st-back">Back</button>' : canClose ? '<button class="link small stclose" type="button" id="st-close">Not now</button>' : '<button class="link small stclose" type="button" data-x="st-out">Sign out</button>'}
         <div class="msg err"></div>
       </form>
       <div id="st-done" class="ststep" hidden></div>
@@ -1565,6 +1566,8 @@ function showStatement(canClose = false) {
       setTimeout(() => you.name.focus(), 50);
     }
     if (canClose && !isNew) o.querySelector("#st-close").onclick = () => { o.remove(); resolve(false); };
+    // Anyone can leave before finishing, including Apple's reviewer
+    for (const b of o.querySelectorAll('.st-out, [data-x="st-out"]')) b.onclick = async () => { await api("/api/auth/logout", {}); location.replace("/login"); };
     f.addEventListener("change", () => (o.querySelector(".stnone").hidden = f.basis.value !== "none"));
     f.onsubmit = (e) => {
       e.preventDefault();
