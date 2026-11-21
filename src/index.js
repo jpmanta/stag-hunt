@@ -2063,7 +2063,8 @@ async function sendMail(env, to, subject, text, html, extra = {}) {
 // A short heads-up to members when someone shares a new deal
 async function emailNewDeal(env, d) {
   const { results } = await env.DB.prepare(`SELECT email, name FROM users WHERE status = 'active' AND notify_deals = 1 AND id != ?
-    AND (role != 'member' OR tier IS NULL OR ? IS NULL OR tier >= ?) AND ${clearedSql()}`).bind(d.poster_id, d.min_tier, d.min_tier).all();   // only members at this check size
+    AND (role != 'member' OR tier IS NULL OR ? IS NULL OR tier >= ?) AND ${clearedSql()}
+    AND id NOT IN (SELECT user_id FROM blocks WHERE blocked_id = ?)`).bind(d.poster_id, d.min_tier, d.min_tier, d.poster_id).all();   // and not to anyone who blocked the bringer   // only members at this check size
   for (const u of results) await sendMail(env, u.email, ...newDealMail(env, d, u));
 }
 
@@ -2097,7 +2098,8 @@ async function sendWeeklyDigest(env) {
 
 // One member's Monday digest, or null when there is nothing worth an email (unless forced, for a test)
 async function digestMail(env, m, newDeals, contributors, inbound, force = false, sample = null) {
-  const mine = sample ? sample.mine : newDeals.filter((d) => fits(m, d));   // only deals at their check size
+  const blocked = sample ? new Set() : await blockedIds(env, m);   // the same rule as the app: nothing from members they blocked
+  const mine = sample ? sample.mine : newDeals.filter((d) => fits(m, d) && !blocked.has(d.poster_id));   // only deals at their check size
   const { toScore, ours, yourCalls, record, checks } = sample || await digestFacts(env, m);
   if (!mine.length && !toScore.length && !inbound && !ours.length && !force) return null;   // nothing worth an email
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -2248,6 +2250,7 @@ async function digestFacts(env, m) {
   const weekAgo = now() - 7 * 86400;
   const [toScore, yourDeals, yourCalls, record, checks] = await Promise.all([
     env.DB.prepare(`SELECT d.id, d.company FROM deals d WHERE d.status IN ('reviewing','founder_call') AND d.poster_id != ?1
+      AND d.poster_id NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?1)
       AND ${fitsSql(m)} AND NOT EXISTS (SELECT 1 FROM scores s WHERE s.deal_id = d.id AND s.member_id = ?1) ORDER BY d.created_at DESC LIMIT 10`).bind(m.id).all(),
     env.DB.prepare(`SELECT d.id, d.company, COUNT(*) AS n FROM deals d JOIN scores s ON s.deal_id = d.id
       WHERE d.poster_id = ? AND s.member_id != d.poster_id AND s.updated_at > ? GROUP BY d.id ORDER BY n DESC`).bind(m.id, weekAgo).all(),

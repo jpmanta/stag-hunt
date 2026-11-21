@@ -1,6 +1,6 @@
 # Stag Hunt Architecture (the framework)
 
-The short version of the design (draft 1.3, November 19, 2026). Read it before any design change.
+The short version of the design (draft 1.4, November 20, 2026). Read it before any design change.
 
 ## The idea
 Many hunts on one network. A hunt is a group that shares deals (a Junto; a fund or angel group is a hunt too).
@@ -32,6 +32,8 @@ Every feature must trace to a first principle in section 2 of the artifact. One 
 - can_call: can_see, the deal is in review, and the person did not bring it.
 - can_see_calls: can_see, and the person has made their own call or brought the deal.
 - share to another hunt: needs the founder's yes (I10).
+- blocked: a person never sees deals, calls, updates or notes from someone they blocked, in the app or in email.
+  It hides things for them only; counts stay true and nobody else's view changes (I8).
 The app, the API and the emails must all use the same rule.
 
 ## Build plan (each phase ships alone; the site keeps working between phases)
@@ -48,7 +50,7 @@ Timing in the artifact: design by end of 2026, build after the holidays.
 Accreditation self-statement, whether sharing a deal counts as advertising a round, public hunt records,
 pledges and syndicates, non-accredited members, and whether open sign-up with the statement and 30-day wait (I16) keeps rounds out of general solicitation under Rule 506(b).
 
-## Where the live site stands against it (Nov 19)
+## Where the live site stands against it (Nov 20)
 - Done: I1, I2, I3, I4, I5, I7, I9, outcome confirmation, records that follow the person.
 - Done Nov 17: can_call. Nobody calls the deal they brought, and calls close when a deal leaves review.
 - Hunts built Nov 17 (migration 0026): hunts, memberships, invites, a home hunt on every deal.
@@ -69,3 +71,10 @@ pledges and syndicates, non-accredited members, and whether open sign-up with th
 - Investor statement built Nov 19 (migration 0028, I16): investor_statements is append only and keeps the exact wording
   each person agreed to. fits and fitsSql in src/index.js apply it to every deal list, page, email, application and export.
 - Known gap: until Phase 2 (sharing), a cleared member sees every deal their check size fits, not only their hunts'.
+- Report and block built Nov 20 (migration 0029): reports (who reported what, and why; every admin is emailed and
+  the Terms promise a look within 24 hours) and blocks (one row per person blocked). Deal emails and the Monday
+  digest skip deals from people the reader blocked, the same as the app.
+- Retired tables, kept only as history and never read: cohorts, nominations, objections. join_requests is read only
+  by the nightly job, to close old requests.
+- The live site has no deals or calls yet, so the ledger is empty and no fingerprint has been sealed. The first
+  one is sealed the night after the first call.
