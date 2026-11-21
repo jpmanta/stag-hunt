@@ -825,6 +825,8 @@ main.narrow{position:relative}
   .marg{position:absolute;top:0;bottom:0;left:calc(100% + 40px);width:230px;margin:0;padding:0;border:0}
   .marg .in{position:sticky;top:104px;padding:4px 0 4px 20px;border-left:1px solid var(--line)}
   .marg .q{font-size:17px}
+  /* With quotes in the right margin, wide tables open out to the left and stop short of them */
+  main:has(.marg) .cmpwrap{--w:min(1080px,100% + 20px + (min(100vw, 1440px) - 100%) / 2 - 16px);left:auto;transform:none;width:var(--w);margin-left:calc(100% + 20px - var(--w))}
 }
 .marg .belief{font:400 13.5px/1.55 var(--sans);color:var(--muted);padding-top:16px;border-top:1px solid var(--line)}
 
