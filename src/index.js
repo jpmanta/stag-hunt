@@ -156,7 +156,7 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && p === "/api/me") return updateMe(request, env, me);
   if (m === "POST" && p === "/api/me/terms") { await env.DB.prepare("UPDATE users SET terms_accepted_at = ? WHERE id = ?").bind(now(), me.id).run(); return json({ ok: true }); }
   if (m === "GET" && p === "/api/statement") return json(STATEMENT);
-  if (m === "POST" && p === "/api/me/statement") return makeStatement(request, env, me);
+  if (m === "POST" && p === "/api/me/statement") { if (me.demo) bad("The App Review account is a demo and makes no investor statement."); return makeStatement(request, env, me); }
   if (m === "POST" && p === "/api/me/basics") return saveBasics(request, env, me);
   if (m === "POST" && p === "/api/me/notifications") return updateNotifications(request, env, me);
   if (m === "POST" && p === "/api/me/test-email") return sendTestEmails(env, me, !!(await request.json().catch(() => ({}))).sample);
@@ -173,7 +173,7 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && p === "/api/me/record-link/delete") { await env.DB.prepare("UPDATE users SET record_link = NULL WHERE id = ?").bind(me.id).run(); return json({ ok: true }); }
   if (m === "POST" && p === "/api/me/api-key/delete") { await env.DB.prepare("DELETE FROM api_keys WHERE user_id = ?").bind(me.id).run(); return json({ ok: true }); }
   if (m === "GET" && p === "/api/me/history.csv") return myHistory(env, me, "csv");
-  if (m === "POST" && p === "/api/me/delete") return requestDeletion(request, env, me);
+  if (m === "POST" && p === "/api/me/delete") return deleteAccount(env, me);
   if (m === "GET" && p === "/api/passkeys") return listPasskeys(env, me);
   if (m === "POST" && p === "/api/passkey/register/options") return passkeyRegisterOptions(env, me);
   if (m === "POST" && p === "/api/passkey/register/verify") return passkeyRegisterVerify(request, env, me);
@@ -260,6 +260,7 @@ async function requestCode(request, env) {
 
   // Apple's app reviewer can't read email, so their one account takes a fixed code (secret REVIEW_CODE).
   if (env.REVIEW_EMAIL && /^\d{6}$/.test(env.REVIEW_CODE || "") && email === normalizeEmail(env.REVIEW_EMAIL)) {
+    await ensureReviewAccount(env, email);
     await env.DB.prepare(
       `INSERT INTO login_codes (email, code_hash, link_hash, expires_at, sent_at, attempts) VALUES (?, ?, '', ?, ?, 0)
        ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, link_hash = '', expires_at = excluded.expires_at, sent_at = excluded.sent_at, attempts = 0`
@@ -372,20 +373,94 @@ async function logout(request, env) {
   return json({ ok: true }, 200, { "Set-Cookie": SIGNED_OUT });
 }
 
-// A member asks to delete their account (Apple requires this in the app). Admins get an email
-// and remove the account by hand within 7 days; the member is signed out on every device now.
-async function requestDeletion(request, env, me) {
-  const name = me.name || me.email;
-  await emailAdmins(env, `Stag Hunt: ${name} asked to delete their account`,
-    `${name} <${me.email}> asked to delete their Stag Hunt account and data. Please do it within 7 days and reply to confirm.`,
-    mailKicker("Account deletion") + mailTitle(escHtml(name)) + mailNote(escHtml(me.email)) +
-    `<tr><td align="center" style="padding:0 0 16px;font:16px/1.65 Georgia,serif;color:#2E3445">They asked to delete their account and data. Please do it within 7 days and reply to confirm.</td></tr>` +
-    mailBtn(`mailto:${encodeURIComponent(me.email)}`, "Reply"));
+// A member deletes their account (Apple 5.1.1(v)): done at once, no email step. Their personal data goes:
+// profile, sign-ins, calls, investments, notes, updates, recordings, blocks, invites and hunt places.
+// Deals they brought stay for the hunt that relies on them, shown as from "Former member". Two records are
+// append only by design and stay, tied to no name or email: the investor statement (I16) and the ledger (I12).
+async function deleteAccount(env, me) {
+  const id = me.id;
+  if (me.role === "admin" && !(await env.DB.prepare("SELECT 1 FROM users WHERE role = 'admin' AND status = 'active' AND id != ?").bind(id).first()))
+    bad("You're the only admin. Make someone else an admin first.");
+  const hunts = (await env.DB.prepare("SELECT hunt FROM memberships WHERE person = ?").bind(id).all()).results.map((r) => r.hunt);
+  const q = (sql, ...a) => env.DB.prepare(sql).bind(...a);
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(me.id),
-    env.DB.prepare("DELETE FROM api_keys WHERE user_id = ?").bind(me.id),
+    q("DELETE FROM sessions WHERE user_id = ?", id),
+    q("DELETE FROM api_keys WHERE user_id = ?", id),
+    q("DELETE FROM passkeys WHERE user_id = ?", id),
+    q("DELETE FROM webauthn_challenges WHERE user_id = ?", id),
+    q("DELETE FROM login_codes WHERE email = ?", me.email),
+    q("DELETE FROM rec_segments WHERE rec_id IN (SELECT id FROM recordings WHERE member_id = ?)", id),
+    q("DELETE FROM recordings WHERE member_id = ?", id),
+    ...["scores", "investments", "pledges", "intros", "deal_updates", "lessons", "messages", "objections"].map((t) => q(`DELETE FROM ${t} WHERE member_id = ?`, id)),
+    q("DELETE FROM objections WHERE nomination_id IN (SELECT id FROM nominations WHERE nominated_by = ?)", id),
+    q("DELETE FROM nominations WHERE nominated_by = ?", id),
+    q("DELETE FROM blocks WHERE user_id = ?1 OR blocked_id = ?1", id),
+    q("DELETE FROM hunt_invites WHERE invited_by = ? OR email = ?", id, me.email),
+    q("DELETE FROM join_requests WHERE email = ?", me.email),
+    q("DELETE FROM memberships WHERE person = ?", id),
+    q(`UPDATE users SET email = ?, name = 'Former member', status = 'deleted', role = 'member', demo = 0, notify_deals = 0, notify_digest = 0,
+       network = NULL, headline = NULL, location = NULL, bio = NULL, focus = NULL, check_size = NULL, linkedin = NULL, twitter = NULL,
+       website = NULL, photo = NULL, photo_at = NULL, thesis = NULL, involvement = NULL, record_link = NULL, tier = NULL, invited_by = NULL
+       WHERE id = ?`, `deleted-${id}@deleted.invalid`, id),
+    // each hunt they were in carries on, as when someone leaves
+    ...hunts.flatMap((h) => [
+      q(`UPDATE memberships SET role = 'lead' WHERE hunt = ?1 AND NOT EXISTS (SELECT 1 FROM memberships WHERE hunt = ?1 AND role = 'lead')
+        AND person = (SELECT person FROM memberships WHERE hunt = ?1 ORDER BY joined_at, person LIMIT 1)`, h),
+      q(`DELETE FROM hunts WHERE id = ?1 AND NOT EXISTS (SELECT 1 FROM memberships WHERE hunt = ?1)
+        AND NOT EXISTS (SELECT 1 FROM deals WHERE home_hunt = ?1)`, h),
+    ]),
   ]);
+  try { await hub(env).fetch("https://hub/kick", { method: "POST", body: JSON.stringify({ user_id: id }) }); } catch {}
+  await notify(env, { type: "changed", what: "members" });
   return json({ ok: true }, 200, { "Set-Cookie": SIGNED_OUT });
+}
+
+// ---- App Review (Nov 21). Apple's reviewer signs in with REVIEW_EMAIL and the fixed REVIEW_CODE, no inbox needed.
+// That account is a read-only demo: it sits only in a sample hunt of made-up deals, so it never sees a real deal,
+// and a made-up member brought them, so the reviewer can Report, Block and Unblock. Every sign-in puts it back
+// in shape, and if the reviewer deletes it, the next sign-in makes a fresh one.
+const SAMPLE_HUNT = "5a3e0000-0000-4000-8000-000000000001";
+const SAMPLE_MEMBER = "5a3e0000-0000-4000-8000-000000000002";
+const SAMPLE_DEALS = [
+  { id: "5a3e0000-0000-4000-8000-0000000000d1", company: "Sample: Fieldline Robotics", sector: "Agriculture",
+    one_liner: "Small solar robots that pull weeds on vegetable farms, so growers spray less.", round_type: "SAFE",
+    raise_amount: "$1.5M", valuation_cap: "$12M", min_check: "$5,000", min_tier: 5000,
+    how_found: "Sample deal for App Review. Made up: no real company, founder or round.",
+    why_now: "Sample text: farm labor is short and growers are paying more for chemicals." },
+  { id: "5a3e0000-0000-4000-8000-0000000000d2", company: "Sample: Harbor Health Records", sector: "Health",
+    one_liner: "One plain record of a patient's visits that the patient owns and can share with any doctor.", round_type: "Priced round",
+    raise_amount: "$3M", valuation_cap: "$20M", min_check: "$10,000", min_tier: 10000,
+    how_found: "Sample deal for App Review. Made up: no real company, founder or round.",
+    why_now: "Sample text: new rules make clinics hand records to patients on request." },
+  { id: "5a3e0000-0000-4000-8000-0000000000d3", company: "Sample: Kiln Housing", sector: "Housing",
+    one_liner: "Factory-built starter homes that go up in a week and cost a third less.", round_type: "SAFE",
+    raise_amount: "$2M", valuation_cap: "$15M", min_check: "$25,000", min_tier: 25000,
+    how_found: "Sample deal for App Review. Made up: no real company, founder or round.",
+    why_now: "Sample text: towns are changing zoning to allow smaller homes." },
+];
+async function ensureReviewAccount(env, email) {
+  const t = now(), q = (sql, ...a) => env.DB.prepare(sql).bind(...a);
+  const u0 = await env.DB.prepare("SELECT id, status FROM users WHERE email = ?").bind(email).first();
+  if (!u0) await insertRow(env, "users", { id: crypto.randomUUID(), email, created_at: t, name: "App Review", role: "observer", status: "active" }).run();
+  else if (u0.status !== "active") await q("UPDATE users SET status = 'active' WHERE id = ?", u0.id).run();
+  const u = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+  await env.DB.batch([
+    q("INSERT OR IGNORE INTO hunts (id, name, created_at) VALUES (?, 'Sample hunt (App Review)', ?)", SAMPLE_HUNT, t),
+    q(`INSERT OR IGNORE INTO users (id, email, created_at, name, role, status, demo, notify_deals, notify_digest, headline, bio)
+       VALUES (?, 'sample-member@example.invalid', ?, 'Sam Sample', 'observer', 'active', 1, 0, 0, 'Made-up member for App Review',
+       'This member is made up, so the reviewer can try Report and Block without touching anyone real.')`, SAMPLE_MEMBER, t),
+    q("UPDATE users SET role = 'observer', demo = 1, notify_deals = 0, notify_digest = 0, terms_accepted_at = COALESCE(terms_accepted_at, ?) WHERE id = ?", t, u.id),
+    q("DELETE FROM memberships WHERE person = ? AND hunt != ?", u.id, SAMPLE_HUNT),
+    q("INSERT OR IGNORE INTO memberships (person, hunt, role, joined_at) VALUES (?, ?, 'lead', ?)", SAMPLE_MEMBER, SAMPLE_HUNT, t),
+    q("INSERT OR IGNORE INTO memberships (person, hunt, role, joined_at) VALUES (?, ?, 'member', ?)", u.id, SAMPLE_HUNT, t),
+    ...SAMPLE_DEALS.map((d) => q(`INSERT OR IGNORE INTO deals (id, poster_id, company, sector, one_liner, round_type, raise_amount, valuation_cap,
+       min_check, min_tier, how_found, why_now, status, home_hunt, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'reviewing', ?, ?, ?)`,
+      d.id, SAMPLE_MEMBER, d.company, d.sector, d.one_liner, d.round_type, d.raise_amount, d.valuation_cap, d.min_check, d.min_tier,
+      d.how_found, d.why_now, SAMPLE_HUNT, t, t)),
+    q(`INSERT OR IGNORE INTO deal_updates (id, deal_id, member_id, body, created_at)
+       VALUES ('5a3e0000-0000-4000-8000-0000000000e1', ?, ?, 'Sample update: the founders sent their first-quarter numbers.', ?)`, SAMPLE_DEALS[0].id, SAMPLE_MEMBER, t),
+  ]);
 }
 
 async function currentUser(request, env) {
@@ -414,7 +489,7 @@ function publicUser(u) {
     headline: u.headline || "", location: u.location || "", bio: u.bio || "", focus: u.focus || "", check_size: u.check_size || "",
     tier: u.tier ?? null, thesis: u.thesis || "", involvement: u.involvement || "",
     linkedin: u.linkedin || "", twitter: u.twitter || "", website: u.website || "", photo_at: u.photo_at ?? null, cohort: u.cohort ?? null,
-    accredited: u.accredited ?? null, statement_at: u.statement_at ?? null, deals_open_at: dealsOpenAt(u) };
+    accredited: u.accredited ?? null, statement_at: u.statement_at ?? null, deals_open_at: dealsOpenAt(u), demo: !!u.demo };
 }
 
 async function updateMe(request, env, me) {
@@ -490,6 +565,11 @@ async function overview(env, me) {
       AND (d.poster_id = ?1 OR EXISTS (SELECT 1 FROM scores s WHERE s.deal_id = d.id AND s.member_id = ?1)) ORDER BY d.pending_at LIMIT 5`).bind(me.id).all();
   const scorecard = await groupScorecard(env);
   const [scoredSet, blocked] = await Promise.all([myScored(env, me), blockedIds(env, me)]);
+  // the App Review demo gets no real numbers, only its sample hunt
+  if (me.demo) return json({ totals: { deals_reviewed: 3, deals_invested: 0, invested_cents: 0, realized_cents: 0, paper_cents: 0 }, members: 2,
+    recent: recent.results.filter((d) => !blocked.has(d.poster_id)).map((d) => hideScores(d, me, scoredSet)),
+    to_score: toScore.results.filter((d) => !blocked.has(d.poster_id)), scorecard: null,
+    nudges: { locked_open: [], look_back: [], to_confirm: [] } });
   return json({ totals: t, members: members.n, recent: recent.results.filter((d) => !blocked.has(d.poster_id)).map((d) => hideScores(d, me, scoredSet)),
     to_score: toScore.results.filter((d) => !blocked.has(d.poster_id)), scorecard,
     nudges: { locked_open: lockedOpen.results, look_back: lookBack.results, to_confirm: toConfirm.results } });
@@ -546,7 +626,7 @@ async function getPhoto(env, id) {
 
 async function getMember(env, id, me) {
   const { results } = await env.DB.prepare(MEMBERS_SQL + " AND u.id = ?").bind(now() - 30 * 86400, id).all();
-  if (!results.length || (results[0].role === "observer" && me.role !== "admin")) throw new HttpError(404, "not_found", "Member not found.");
+  if (!results.length || (results[0].role === "observer" && me.role !== "admin" && !(results[0].demo && me.demo))) throw new HttpError(404, "not_found", "Member not found.");
   const deals = (await env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.status, d.created_at FROM deals d WHERE d.poster_id = ? AND ${fitsSql(me)} ORDER BY d.created_at DESC LIMIT 20`).bind(id).all()).results;
   // What they actually back, learned from every yes or no on other members' deals
   const calls = (await env.DB.prepare(`SELECT s.yes, d.sector, d.round_type, d.min_tier FROM scores s JOIN deals d ON d.id = s.deal_id
@@ -561,7 +641,7 @@ async function getMember(env, id, me) {
   return json({ member: me.role === "admin" ? results[0] : hideEmail(results[0], me), deals: cleared(me) || id === me.id ? deals : [], taste, blocked });
 }
 
-const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.role, u.network, u.created_at, u.last_login,
+const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.role, u.demo, u.network, u.created_at, u.last_login,
        u.headline, u.location, u.bio, u.focus, u.check_size, u.tier, u.thesis, u.involvement, u.linkedin, u.twitter, u.website, u.photo_at, u.cohort,
        (SELECT COUNT(*) FROM scores s JOIN deals d ON d.id = s.deal_id WHERE s.member_id = u.id AND d.poster_id != u.id AND s.yes = 1) AS yes_on_others,
        (SELECT COUNT(*) FROM deals d WHERE d.poster_id = u.id) AS deals_posted,
@@ -586,7 +666,9 @@ const hideEmail = (u, me) => (u.id === me.id ? u : { ...u, email: "" });
 
 async function listMembers(env, me) {
   const since = now() - 30 * 86400;
-  const { results } = await env.DB.prepare(MEMBERS_SQL + " ORDER BY u.created_at").bind(since).all();
+  const { results: all } = await env.DB.prepare(MEMBERS_SQL + " ORDER BY u.created_at").bind(since).all();
+  // the App Review demo sees only the made-up members, and nobody else sees them
+  const results = all.filter((u) => !!u.demo === !!(me && me.demo));
   const observers = results.filter((u) => u.role === "observer");
   const shown = me && me.role === "admin" ? results : results.filter((u) => u.role !== "observer").map((u) => hideEmail(u, me));
   return json({ members: shown, observers: observers.map((u) => ({ id: u.id, name: u.name })) });
@@ -873,12 +955,12 @@ async function withHunts(env, u) {
 const REPORTED_SQL = `EXISTS (SELECT 1 FROM reports r WHERE (r.kind = 'deal' AND r.target_id = d.id)
   OR (r.kind IN ('call', 'investment') AND r.target_id LIKE d.id || ':%')
   OR (r.kind = 'update' AND r.target_id IN (SELECT id FROM deal_updates WHERE deal_id = d.id)))`;
-const inHunt = (me, d) => d.poster_id === me.id || me.role === "observer"
+const inHunt = (me, d) => d.poster_id === me.id || (me.role === "observer" && !me.demo)
   || (me.hunts instanceof Set && me.hunts.has(d.home_hunt))
   || (me.shared instanceof Set && me.shared.has(d.id))
   || (me.role === "admin" && !!d.reported);
 const inHuntSql = (me) => {
-  if (me.role === "observer") return "1";
+  if (me.role === "observer" && !me.demo) return "1";   // the App Review demo sees only its sample hunt
   const id = safeId(me.id);
   return `(d.poster_id = '${id}' OR d.home_hunt IN (SELECT hunt FROM memberships WHERE person = '${id}')`
     + (SHARING ? ` OR d.id IN (SELECT x.deal FROM deal_shares x JOIN memberships xm ON xm.hunt = x.hunt WHERE xm.person = '${id}' AND x.founder_ok_at IS NOT NULL)` : "")
@@ -919,10 +1001,10 @@ function dollars(v) {
 // SEC's no-action letters on online platforms (Lamp Technologies, Citizen VC): a relationship before any offering.
 const OPEN_SIGNUP_AT = 1795118886;          // Nov 19, 2026: accounts from before were approved by hand
 const DEAL_WAIT = 30 * 86400;
-const dealsOpenAt = (u) => (u.role === "admin" ? 0 : !u.accredited || u.accredited === "none" ? null
+const dealsOpenAt = (u) => (u.role === "admin" || u.demo ? 0 : !u.accredited || u.accredited === "none" ? null
   : u.created_at < OPEN_SIGNUP_AT ? 0 : (u.statement_at || now()) + DEAL_WAIT);
 const cleared = (u) => { const t = dealsOpenAt(u); return t !== null && t <= now(); };
-const clearedSql = () => `(role = 'admin' OR (accredited IS NOT NULL AND accredited != 'none' AND (created_at < ${OPEN_SIGNUP_AT} OR statement_at <= ${now() - DEAL_WAIT})))`;
+const clearedSql = () => `(role = 'admin' OR demo = 1 OR (accredited IS NOT NULL AND accredited != 'none' AND (created_at < ${OPEN_SIGNUP_AT} OR statement_at <= ${now() - DEAL_WAIT})))`;
 function notCleared(me) {
   const t = dealsOpenAt(me);
   throw new HttpError(403, "not_cleared", t !== null ? `Deals open for you on ${longDate(t)}, 30 days after your investor statement.`
@@ -1946,7 +2028,24 @@ function insertRow(env, table, row) {
   const cols = Object.keys(row);
   return env.DB.prepare(`INSERT INTO ${table} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`).bind(...cols.map((c) => row[c]));
 }
-async function readJson(request) { try { return await request.json(); } catch { return {}; } }
+async function readJson(request) {
+  let b;
+  try { b = await request.json(); } catch { return {}; }
+  checkText(b);
+  return b;
+}
+// Objectionable words are refused wherever anyone writes (Apple 1.2): slurs, sexual content, threats.
+// Long unbroken strings (photos, keys, sign-in data) are skipped, so only words people type are checked.
+const BLOCKED_WORDS = new RegExp("\\b(" + [
+  "n[i1]gg(?:er|a|az|ers|as)", "f[a@]gg?(?:ot|ots|s)?", "k[i1]kes?", "sp[i1]cs?", "ch[i1]nks?", "wetbacks?", "trann(?:y|ies)", "r[e3]tards?(?:ed)?",
+  "f+u+c+k\\w*", "motherf\\w*", "c[u*]nts?", "cocksuck\\w*", "blowjobs?", "porn\\w*", "pussy", "whores?", "sluts?", "dildos?",
+  "kys", "kill\\s+your\\s*self", "go\\s+die", "i\\s+will\\s+kill\\s+you",
+].join("|") + ")\\b", "i");
+function checkText(v) {
+  if (typeof v === "string") {
+    if ((/\s/.test(v) || v.length <= 40) && BLOCKED_WORDS.test(v)) throw new HttpError(400, "objectionable", "That includes words Stag Hunt doesn't allow. Please reword it.");
+  } else if (v && typeof v === "object") for (const x of Object.values(v)) checkText(x);
+}
 function now() { return Math.floor(Date.now() / 1000); }
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });

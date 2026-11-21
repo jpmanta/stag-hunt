@@ -1315,8 +1315,9 @@ async function viewProfile() {
       <label class="check"><input type="checkbox" id="n-deals" ${me.notify_deals ? "checked" : ""}> Email me new deals</label>
       <label class="check"><input type="checkbox" id="n-digest" ${me.notify_digest ? "checked" : ""}> Weekly digest on Mondays</label>
       <div class="setrow"><span class="small faint">See both emails as members get them</span><span class="row"><button class="link small" type="button" id="testmail">Send me a test</button><button class="link small" type="button" id="samplemail" title="A Monday digest filled with made-up numbers, to see every section">Send a sample</button></span></div>
-      <div class="setrow"><span class="small faint">Investor statement: ${me.accredited == null ? "not made yet" : me.accredited === "none" ? "not accredited" : "accredited"}</span><button class="link small" type="button" data-statement>${me.accredited == null ? "Make it" : "Update"}</button></div>
+      ${me.demo ? "" : `<div class="setrow"><span class="small faint">Investor statement: ${me.accredited == null ? "not made yet" : me.accredited === "none" ? "not accredited" : "accredited"}</span><button class="link small" type="button" data-statement>${me.accredited == null ? "Make it" : "Update"}</button></div>`}
       <div class="setrow"><span class="small faint">${esc(me.email)}</span><button class="link small" type="button" id="logout">Sign out</button></div>
+      <div class="setrow"><span class="small faint">Questions, a problem, or something to report?</span><span class="row"><a class="link small" href="/contact/">Contact support</a><a class="link small" href="/terms/">Terms</a></span></div>
       <div class="setrow"><span class="small faint">Delete your account and everything in it</span><button class="link small" type="button" id="delacct">Delete account</button></div>
     </div></div>`;
 
@@ -1367,8 +1368,8 @@ async function viewProfile() {
   }); });
   $("#logout").onclick = async () => { await api("/api/auth/logout", {}); location.replace("/"); };
   $("#delacct").onclick = async () => {
-    if (!(await ask("Delete your Stag Hunt account? We remove your account and data within 7 days and email you when it's done. You'll be signed out now."))) return;
-    await api("/api/me/delete", {}); location.replace("/");
+    if (!(await ask("Delete your Stag Hunt account now? Your profile, calls, investments, notes and sign-ins are deleted right away, and this can't be undone. Deals you brought stay for your hunt, shown as from a former member."))) return;
+    await api("/api/me/delete", {}); toast("Your account is deleted."); setTimeout(() => location.replace("/"), 900);
   };
 }
 
@@ -1622,7 +1623,7 @@ document.addEventListener("click", async (e) => { if (e.target.closest("[data-st
   if (!r.ok) { location.replace("/login"); return; }
   state.me = (await r.json()).user;
   document.body.classList.toggle("observer", state.me.role === "observer");
-  if (state.me.accredited == null || !state.me.terms_accepted_at) await showStatement();
+  if (!state.me.demo && (state.me.accredited == null || !state.me.terms_accepted_at)) await showStatement();
   $("#app").hidden = false;
   renderMe();
   $("#menu").onclick = () => $("#app").classList.toggle("menu");
