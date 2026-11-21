@@ -206,7 +206,7 @@ function renderTabbar() {
 }
 function renderMe() {
   if (!state.me) return;
-  $("#me").innerHTML = `<a href="#/profile">${esc(state.me.name)}</a><span class="faint small">${esc(state.me.email)}</span><br>
+  $("#me").innerHTML = `<a href="#/profile">${esc(state.me.name)}</a>
     <span class="conn"><i class="dot ${state.wsOk ? "on" : ""}"></i>${state.wsOk ? "Live" : "Reconnecting…"}</span>
     <div class="melinks"><a href="/terms/" target="_blank">Terms</a><a href="/privacy/" target="_blank">Privacy</a></div>`;
 }
@@ -244,12 +244,12 @@ async function router() {
   for (const [re, fn] of routes) {
     const m = (path || "#/").match(re);
     if (m) {
-      try { await fn(m, seq); } catch (e) { if (seq === renderSeq) view.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+      try { await fn(m, seq); } catch (e) { if (seq === renderSeq) view.innerHTML = `<div class="panel">${emptyState("Not available", esc(e.message), '<a class="btn sm ghost" href="#/">Go home</a>')}</div>`; }
       if (moved && seq === renderSeq) { view.classList.add("enter"); setTimeout(() => seq === renderSeq && view.classList.remove("enter"), 900); window.scrollTo(0, 0); }
       return;
     }
   }
-  view.innerHTML = '<div class="empty">Page not found. <a href="#/">Go home</a></div>';
+  view.innerHTML = `<div class="panel">${emptyState("Page not found", "The link may be old, or the page has moved.", '<a class="btn sm ghost" href="#/">Go home</a>')}</div>`;
 }
 const query = () => new URLSearchParams(location.hash.split("?")[1] || "");
 function live(fn, filter) { // re-render the current view when relevant data changes (debounced)
@@ -309,9 +309,15 @@ async function viewHome(_, seq) {
   const observer = state.me.role === "observer";
   const pkBanner = `<div class="notice row between" id="pkbanner" hidden><span><b>Sign in with ${Passkey.name} next time.</b> One touch, no email.</span><span class="row"><button class="btn sm" id="pkset">Turn it on</button><button class="link small" id="pkhide">Not now</button></span></div><div id="installbanner" hidden></div>`;
   const n = o.nudges || {};
+  const me = state.me, starting = me.role === "member" && (!dealsOpen() || !me.tier);
+  const step = (done, title, line, act = "") => `<li class="${done ? "done" : ""}"><span class="mk" aria-hidden="true"></span><div class="grow"><b>${title}</b><span>${line}</span></div>${done ? "" : act}</li>`;
+  const steps = starting ? [
+    step(me.accredited != null, "Investor statement", me.accredited == null ? "It takes a minute." : "Done. You can update it any time in your profile.", '<button class="btn sm ghost" type="button" data-statement>Start</button>'),
+    step(!!me.tier, "Your check size", me.tier ? "Done. You'll see deals that fit it." : "So you only see deals you could invest in.", '<a class="btn sm ghost" href="#/profile">Set it</a>'),
+    step(dealsOpen(), "Deals open", dealsOpen() ? "You're in." : me.accredited === "none" ? "Deals are for accredited investors. You can still bring deals and start hunts." : `On ${dealsOpenOn()}. The 30-day wait keeps founders' rounds private.`),
+  ] : [];
+  const startCard = starting ? `<div class="panel startcard"><div class="ph"><h3>Getting started</h3><span class="small muted">${steps.filter((x) => x.startsWith('<li class="done"')).length} of ${steps.length} done</span></div><ol class="steps">${steps.join("")}</ol></div>` : "";
   const nudges = [
-    dealGate(),
-    state.me.role === "member" && !state.me.tier ? `<div class="notice nudge">Pick your check size in <a href="#/profile">your profile</a>, so you only see deals you could invest in.</div>` : "",
     ...(n.locked_open || []).map((d) => `<div class="notice nudge"><b>You're locked in on ${esc(d.company)}.</b> <a href="#/deals/${d.id}#hunt">Log your investment</a> when it's done.</div>`),
     ...(n.look_back || []).map((d) => `<div class="notice nudge">It's been six months since <b>${esc(d.company)}</b>. <a href="#/deals/${d.id}#lookback">How did it turn out?</a></div>`),
     ...(n.to_confirm || []).map((d) => `<div class="notice nudge">Someone reported how <b>${esc(d.company)}</b> turned out. <a href="#/deals/${d.id}#lookback">Is it right?</a></div>`),
@@ -321,17 +327,18 @@ async function viewHome(_, seq) {
     <div class="list">${o.to_score.map((d) => `<a href="#/deals/${d.id}#score"><span class="grow"><b>${esc(d.company)}</b></span><span class="small">Yes or no →</span></a>`).join("")}</div></div>` : "";
   $("#view").innerHTML = `
     <div class="pagehead"><div><h1>${(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; })()}, ${esc(firstName(state.me.name))}</h1>
-      ${observer || o.to_score.length ? "" : '<p class="muted" style="margin:4px 0 0">You\'re all caught up.</p>'}</div>
+      ${observer || o.to_score.length ? "" : `<p class="muted" style="margin:4px 0 0">${starting ? "Welcome to Stag Hunt." : "You're all caught up."}</p>`}</div>
       ${observer ? "" : `<a class="btn" href="#/deals/new">${icon("plus")} Share a deal</a>`}</div>
     ${observer ? '<div class="notice">You\'re an observer. You can read everything, members see you listed as an observer, and you can\'t post or make calls.</div>' : `${pkBanner}${nudges}`}
     <div class="stack-lg">
+      ${startCard}
       ${waiting}
       <div class="panel"><div class="ph"><h3>Latest deals</h3><a href="#/deals?status=all" class="small">All deals →</a></div>
         <div class="list">${o.recent.length ? o.recent.map((d) => `
           <a href="#/deals/${d.id}"><div class="grow"><div><b>${esc(d.company)}</b> <span class="faint small">· ${esc(d.poster)} · ${ago(d.created_at)}</span></div>
             <div class="muted small">${esc(d.one_liner)}</div></div>
             <div style="text-align:right"><div class="score">${d.score_count ? tally(d) : "–"}</div>${statusPill(d.status)}</div></a>`).join("")
-          : `<div class="empty">No deals yet.${observer ? "" : ' <a href="#/deals/new">Share the first one</a>.'}</div>`}</div></div>
+          : noDealsYet(observer)}</div></div>
       ${scorecardPanel(o.scorecard, t)}
     </div>`;
   $("#pkset")?.addEventListener("click", async () => { try { await Passkey.setUp(); $("#pkbanner").remove(); toast(`Done. Next time, sign in with ${Passkey.name}.`); } catch (e) { toast(e.message); } });
@@ -382,7 +389,7 @@ async function viewDeals(_, seq) {
           <td class="num">${d.investor_count}</td>
           <td class="num">${d.invested_cents ? usd(d.invested_cents) : "–"}</td>
           <td>${statusPill(d.status)}</td></tr>`).join("")}</tbody></table></div>`
-        : `<div class="panel empty">${deals.length ? "No deals match this filter." : 'No deals yet. <a href="#/deals/new">Share the first one</a>.'}</div>`}`;
+        : `<div class="panel">${deals.length ? emptyState("Nothing here", "No deals match this filter.") : noDealsYet(state.me.role === "observer")}</div>`}`;
     $$("[data-f]", v).forEach((b) => (b.onclick = () => { filter = b.dataset.f; history.replaceState(null, "", "#/deals?status=" + filter); draw(); }));
     $$("th.sort", v).forEach((h) => (h.onclick = () => { sort = { k: h.dataset.k, dir: sort.k === h.dataset.k ? -sort.dir : h.dataset.k === "company" ? 1 : -1 }; draw(); }));
     $$("tr[data-id]", v).forEach((r) => (r.onclick = () => (location.hash = "#/deals/" + r.dataset.id)));
@@ -588,6 +595,10 @@ async function viewDealForm(id) {
 
 // ------------------------------------------------------------ inbound (founder applications)
 async function viewInbound(_, seq) {
+  if (!dealsOpen() && state.me.role !== "admin") {
+    $("#view").innerHTML = `<div class="pagehead"><div><h1>Founder applications</h1></div></div><div class="panel">${emptyState("Applications will show here", state.me.accredited === "none" ? "Founders' applications are for accredited investors." : `They open for you on ${dealsOpenOn()}, with deals.`)}</div>`;
+    return;
+  }
   const { applications: apps } = await api("/api/inbound");
   if (seq !== renderSeq) return;
   $("#view").innerHTML = `
@@ -597,7 +608,7 @@ async function viewInbound(_, seq) {
       <a href="#/inbound/${a.id}"><span class="grow"><b>${esc(a.company)}</b> <span class="small muted">${esc(a.one_liner)}</span>
         <span class="small faint" style="display:block;margin-top:2px">${esc(a.founder_name)} · ${esc(a.round_type)}${a.raise_amount ? " · Raising " + esc(a.raise_amount) : ""} · ${ago(a.created_at)}</span></span>
         ${a.status === "claimed" ? `<span class="pill">${a.claimed_by === state.me.id ? "Your call" : esc(firstName(a.claimer_name)) + " is on it"}</span>` : '<span class="small">Open →</span>'}</a>`).join("")
-      : '<div class="empty">No applications waiting. Send founders to staghunts.com/apply.</div>'}</div></div>`;
+      : emptyState("No applications waiting", "Founders apply at staghunts.com/apply. Send the link to anyone worth hearing from.")}</div></div>`;
   $("#copyapply").onclick = async () => { try { await navigator.clipboard.writeText("https://staghunts.com/apply/"); toast("Apply link copied"); } catch { toast("staghunts.com/apply"); } };
   live(() => router(), (ev) => ev.what === "inbound");
 }
@@ -1181,7 +1192,7 @@ async function viewHunts(_, seq) {
         <div class="panel"><div class="ph"><h3>Your hunts</h3></div><div class="list">${hunts.length ? hunts.map((h) => `
           <a href="#/hunts/${h.id}"><span class="grow"><b>${esc(h.name)}</b> ${h.role === "lead" ? '<span class="pill">Lead</span>' : ""}</span>
             <span class="small faint">${people(h.members)} · ${h.deals} deal${h.deals === 1 ? "" : "s"}</span></a>`).join("")
-          : '<div class="empty">You are not in a hunt yet. Start one, or accept an invite.</div>'}</div></div>
+          : emptyState("No hunts yet", "Start one with the people you already trade deals with, or accept an invite.")}</div></div>
       </div>
       <div class="panel"><div class="ph"><h3>Start a hunt</h3></div><div class="pb">
         <form id="huntform"><label>Name</label><input name="name" required maxlength="60" placeholder="The Tuesday table">
@@ -1588,6 +1599,11 @@ function showStatement(canClose = false) {
     };
   });
 }
+// One quiet empty state everywhere: a short serif line, one sentence, at most one next step.
+const emptyState = (title, line = "", action = "") => `<div class="empty"><div class="et">${title}</div>${line ? `<p>${line}</p>` : ""}${action}</div>`;
+const dealsOpenOn = () => state.me.deals_open_at ? new Date(state.me.deals_open_at * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" }) : "";
+const noDealsYet = (observer) => dealsOpen() ? emptyState("No deals yet", "When a member meets a founder worth backing, it shows up here.", observer ? "" : '<a class="btn sm" href="#/deals/new">Share the first one</a>')
+  : emptyState("Deals will show here", state.me.accredited === "none" ? "Deals are for accredited investors. You can still bring deals and start hunts." : `They open for you on ${dealsOpenOn()}. Until then, bring a deal or start a hunt.`);
 const dealsOpen = () => state.me.deals_open_at !== null && state.me.deals_open_at * 1000 <= Date.now();
 function dealGate() {
   if (dealsOpen()) return "";

@@ -93,7 +93,11 @@ input.code{font:600 28px/1.2 var(--mono);letter-spacing:.3em;text-align:center}
 .list>a,.list>div{display:flex;gap:12px;align-items:center;padding:12px 18px;border-top:1px solid var(--line);text-decoration:none;color:var(--fg)}
 .list>a:first-child,.list>div:first-child{border-top:0}
 .list>a:hover{background:var(--sunk)}
-.empty{padding:28px 18px;text-align:center;color:var(--muted);font-size:14px}
+.empty{padding:40px 22px;text-align:center;color:var(--muted);font-size:14px}
+.empty .et{font:500 21px/1.3 var(--serif);color:var(--fg)}
+.empty p{max-width:420px;margin:6px auto 0;line-height:1.55}
+.empty .btn{margin-top:16px}
+.list>.empty{display:block;border-top:0}
 .notice{background:var(--accent-soft);border-radius:var(--r);padding:14px 16px;font-size:14px;margin-bottom:18px}
 .pill{display:inline-flex;align-items:center;gap:6px;font:600 11px/1 var(--mono);padding:5px 8px;border-radius:99px;background:var(--sunk);color:var(--muted);white-space:nowrap;text-transform:uppercase}
 .pill.hit{background:var(--hit-soft);color:var(--hit)} .pill.prom{background:var(--prom-soft);color:var(--prom)} .pill.pass{background:var(--pass-soft);color:var(--pass)}
@@ -176,7 +180,7 @@ td .co{font-weight:600} td .sub{color:var(--muted);font-size:13px;max-width:340p
 /* ---------- form fields: flat, consistent, no native chrome ---------- */
 input,textarea,select{background-color:var(--bg);border:1px solid var(--line);border-radius:var(--r);transition:border-color .15s,box-shadow .15s}
 input:hover,textarea:hover,select:hover{border-color:#c9bda2}
-input:focus,textarea:focus,select:focus{outline:none!important;border-color:var(--forest)!important;box-shadow:0 0 0 3px rgba(44,74,51,.14)}
+input:focus,textarea:focus,select:focus{outline:none!important;border-color:var(--forest)!important;box-shadow:0 0 0 3px rgba(184,154,94,.22)}   /* a soft gold halo, the same gold as the frames */
 select{-webkit-appearance:none;-moz-appearance:none;appearance:none;cursor:pointer;padding-right:38px;line-height:1.4;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%232c4a33' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 14px center;background-size:11px 8px}
@@ -225,7 +229,7 @@ input[type=range]{border:0!important;box-shadow:none!important;background:none}
   transition:border-color .15s,box-shadow .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cs.inline .cs-btn{padding:8px 34px 8px 12px;font-size:14px}
 .cs-btn:hover{border-color:#c9bda2}
-.cs.open .cs-btn,.cs-btn:focus-visible{outline:none;border-color:var(--forest);box-shadow:0 0 0 3px rgba(44,74,51,.14)}
+.cs.open .cs-btn,.cs-btn:focus-visible{outline:none;border-color:var(--forest);box-shadow:0 0 0 3px rgba(184,154,94,.22)}
 .cs.open .cs-btn{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 6.5l5-5 5 5' fill='none' stroke='%232c4a33' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
 .cs-menu{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 6px);min-width:190px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 40px -14px rgba(50,35,15,.35),0 2px 6px rgba(50,35,15,.06);padding:6px;max-height:320px;overflow:auto;animation:csin .12s ease-out}
 .cs.inline .cs-menu{left:auto;right:0}
@@ -255,7 +259,7 @@ input[type=range]{border:0!important;box-shadow:none!important;background:none}
 .stopt:hover{border-color:var(--faint)}
 .stopt input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
 .stopt:has(input:checked){border-color:var(--forest);background:rgba(20,36,74,.04)}
-.stopt:has(input:focus-visible){box-shadow:0 0 0 3px rgba(20,36,74,.14)}
+.stopt:has(input:focus-visible){box-shadow:0 0 0 3px rgba(184,154,94,.22)}
 .stmark{flex:none;width:18px;height:18px;margin-top:1px;border:1.5px solid var(--faint);border-radius:50%;display:grid;place-items:center;transition:border-color .15s,background-color .15s}
 .stopt:has(input:checked) .stmark{border-color:var(--forest)}
 .stopt:has(input:checked) .stmark::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--forest)}
@@ -487,8 +491,8 @@ body.observer #updform,body.observer #outcomeform,body.observer #nomform,body.ob
 
 /* Regal palette (Oct 2026): ivory paper, deep navy ink, gold accents. Delete this block to restore oak & forest. */
 :root{
-  --bg:#FAF9F6;--panel:#FFFFFF;--sunk:#F1EFEA;--fg:#1B2233;--muted:#555C6B;--faint:#8A909C;--line:#D9D6CE;
-  --accent:#14244A;--accent-soft:#E6E9F0;--accent-fg:#FAF9F6;
+  --bg:#F9F7F2;--panel:#FFFFFF;--sunk:#F3EFE7;--fg:#1B2233;--muted:#57596A;--faint:#8C8E98;--line:#DDD6C9;
+  --accent:#14244A;--accent-soft:#F3EDE1;--accent-fg:#FAF9F6;
   --forest:#14244A;--moss:#5A6A8A;--oak:#B39556;--oak-dark:#7D6838;
   --sq:#D9D2C1;--sq2:#ECE8DF;--gilt:#B39556}
 
@@ -555,7 +559,7 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 /* active nav: gold underline */
 .home nav.toc a.on{text-decoration-color:var(--gold-line)!important;box-shadow:0 1px 0 var(--gold-line)!important}
 /* sign-in card: gold top rule, square corners */
-.pub .card.auth{border-radius:0!important;border-top:1px solid var(--gold-line);box-shadow:0 0 0 1px var(--line),0 0 0 7px var(--bg),0 0 0 8px var(--gold-line)}
+.pub .card.auth{border-radius:0!important;border:1px solid var(--gold-line);box-shadow:none}   /* one thin gold frame */
 .pub .card.auth h2{text-align:center}
 .pub .or span{font-family:var(--serif);letter-spacing:.3em}
 .pub .btn.block,.home .btn.block{letter-spacing:.18em!important;font-size:13px!important}
@@ -751,3 +755,23 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 }
 .link.rep{color:var(--faint);text-decoration:none;font-size:12.5px}
 .link.rep:hover{color:var(--muted);text-decoration:underline}
+
+/* Getting started: one calm checklist instead of a stack of notices */
+.steps{list-style:none;margin:0;padding:2px 18px 6px}
+.steps li{display:flex;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.steps li:first-child{border-top:0}
+.steps b{display:block;font-weight:500;color:var(--fg)}
+.steps .grow span{display:block;margin-top:1px;font-size:13.5px;color:var(--muted)}
+.steps .mk{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);position:relative;transition:background-color .4s var(--ease),border-color .4s var(--ease)}
+.steps .done .mk{background:var(--forest);border-color:var(--forest)}
+.steps .done .mk::after{content:"";position:absolute;left:7px;top:3.5px;width:5px;height:10px;border:solid var(--panel);border-width:0 1.8px 1.8px 0;transform:rotate(45deg)}
+.steps .done b{color:var(--muted)}
+/* Soft motion: rows warm on hover, empty pages settle in */
+.list>a{transition:background-color .3s var(--ease)}
+.melinks a,.link,a{transition:color .2s var(--ease)}
+@media (prefers-reduced-motion:no-preference){
+  .empty{animation:fadein .6s var(--ease) both}
+  .startcard .steps li{animation:rise .6s var(--ease-out) both}
+  .startcard .steps li:nth-child(2){animation-delay:.08s}
+  .startcard .steps li:nth-child(3){animation-delay:.16s}
+}
