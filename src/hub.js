@@ -15,7 +15,10 @@ export class Hub extends DurableObject {
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
     if (url.pathname === "/broadcast") {
-      this.broadcast(await request.text());
+      // A message with `_to` (member ids) goes only to those members.
+      let s = await request.text(), to = null;
+      try { const m = JSON.parse(s); if (Array.isArray(m._to)) { to = new Set(m._to); delete m._to; s = JSON.stringify(m); } } catch {}
+      this.broadcast(s, to);
       return new Response("ok");
     }
     if (url.pathname === "/kick") {
@@ -49,8 +52,9 @@ export class Hub extends DurableObject {
     this.broadcast(JSON.stringify({ type: "presence", online: [...ids] }));
   }
 
-  broadcast(s) {
+  broadcast(s, to) {
     for (const ws of this.ctx.getWebSockets()) {
+      if (to && !to.has(ws.deserializeAttachment()?.id)) continue;
       try { ws.send(s); } catch {}
     }
   }

@@ -146,6 +146,7 @@ async function route(request, env, ctx, url) {
   // Members only from here
   const me = await currentUser(request, env);
   if (!me) throw new HttpError(401, "signed_out", "Please sign in.");
+  await withHunts(env, me);
 
   if (me.role === "observer" && m === "POST" && !/^\/api\/(me(\/(photo|notifications|terms|statement|basics))?|passkey\/register\/(options|verify)|passkeys\/[^/]+\/delete|auth\/logout|me\/(delete|test-email|api-key(\/delete)?|record-link(\/delete)?)|report|members\/[0-9a-z-]{8,40}\/(block|unblock))$/.test(p))
     throw new HttpError(403, "observer", "Observers can read but not post.");
@@ -192,9 +193,10 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && (mt = p.match(/^\/api\/rec\/([0-9a-f-]{36})\/delete$/))) return deleteRecording(env, me, mt[1]);
   if (m === "POST" && (mt = p.match(/^\/api\/rec\/([0-9a-f-]{36})\/fill$/))) return fillFromRecording(env, me, mt[1]);
   // Deals only for cleared accounts (I16). Whoever brought a deal always sees their own.
-  if ((mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})(\/|$)/)) && !cleared(me)) {
-    const d = await env.DB.prepare("SELECT poster_id FROM deals WHERE id = ?").bind(mt[1]).first();
-    if (!d || d.poster_id !== me.id) notCleared(me);
+  if ((mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})(\/|$)/))) {
+    const d = await env.DB.prepare(`SELECT d.id, d.poster_id, d.home_hunt, ${REPORTED_SQL} AS reported FROM deals d WHERE d.id = ?`).bind(mt[1]).first();
+    if (!cleared(me) && (!d || d.poster_id !== me.id)) notCleared(me);
+    if (d && !inHunt(me, d)) throw new HttpError(404, "not_found", "Deal not found.");   // a deal outside your hunts doesn't exist to you (I6)
   }
   if (/^\/api\/(inbound|export\.csv)/.test(p) && !cleared(me)) notCleared(me);
   if ((mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})$/))) {
@@ -209,6 +211,7 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && (mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})\/pledge\/withdraw$/))) return withdrawPledge(env, me, mt[1]);
   if (m === "POST" && (mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})\/outcome$/))) return setOutcome(request, env, me, mt[1]);
   if (m === "POST" && (mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})\/updates$/))) return addUpdate(request, env, me, mt[1]);
+  if (m === "POST" && (mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})\/(share|unshare)$/))) return shareDeal(request, env, me, mt[1], mt[2]);
   if (m === "GET" && p === "/api/inbound") return listInbound(env, me);
   if ((mt = p.match(/^\/api\/inbound\/([0-9a-f-]{36})$/)) && m === "GET") return getApplication(env, me, mt[1]);
   if ((mt = p.match(/^\/api\/inbound\/([0-9a-f-]{36})\/interview$/)) && m === "GET") return interviewAudio(env, mt[1]);
@@ -220,7 +223,7 @@ async function route(request, env, ctx, url) {
     if (m === "POST") return renameHunt(request, env, me, mt[1]);
   }
   if (m === "POST" && (mt = p.match(/^\/api\/hunts\/([0-9a-f-]{36})\/(invite|uninvite|join|decline|leave)$/))) return huntAction(request, env, me, mt[1], mt[2]);
-  if (m === "GET" && p === "/api/export.csv") return exportCsv(env);
+  if (m === "GET" && p === "/api/export.csv") return exportCsv(env, me);
 
   // Admin
   if (p.startsWith("/api/admin/")) {
@@ -442,8 +445,9 @@ async function connectWs(request, env, me) {
 
 function hub(env) { return env.HUB.get(env.HUB.idFromName("stag-hunt")); }
 
-async function notify(env, payload) {
-  try { await hub(env).fetch("https://hub/broadcast", { method: "POST", body: JSON.stringify(payload) }); } catch (e) { console.error("notify", e); }
+// With `to` (a list of member ids), only those members' open apps hear it.
+async function notify(env, payload, to) {
+  try { await hub(env).fetch("https://hub/broadcast", { method: "POST", body: JSON.stringify(to ? { ...payload, _to: to } : payload) }); } catch (e) { console.error("notify", e); }
 }
 
 // ---------------------------------------------------------------- stats
@@ -475,7 +479,7 @@ async function overview(env, me) {
   const [lockedOpen, lookBack] = await Promise.all([
     env.DB.prepare(`SELECT d.id, d.company FROM pledges p JOIN deals d ON d.id = p.deal_id WHERE p.member_id = ? AND p.locked_at IS NOT NULL
       AND d.status NOT IN ('passed','dead') AND NOT EXISTS (SELECT 1 FROM investments i WHERE i.deal_id = p.deal_id AND i.member_id = p.member_id)`).bind(me.id).all(),
-    env.DB.prepare(`SELECT id, company FROM deals WHERE outcome IS NULL AND pending_outcome IS NULL AND created_at < ? AND (poster_id = ? OR ? = 'admin') ORDER BY created_at LIMIT 5`)
+    env.DB.prepare(`SELECT d.id, d.company FROM deals d WHERE d.outcome IS NULL AND d.pending_outcome IS NULL AND d.created_at < ? AND (d.poster_id = ? OR (? = 'admin' AND ${inHuntSql(me)})) ORDER BY d.created_at LIMIT 5`)
       .bind(now() - 180 * 86400, me.id, me.role).all(),
   ]);
   // Outcomes someone else reported on deals you brought or called, waiting for a second member.
@@ -541,7 +545,7 @@ async function getPhoto(env, id) {
 async function getMember(env, id, me) {
   const { results } = await env.DB.prepare(MEMBERS_SQL + " AND u.id = ?").bind(now() - 30 * 86400, id).all();
   if (!results.length || (results[0].role === "observer" && me.role !== "admin")) throw new HttpError(404, "not_found", "Member not found.");
-  const deals = (await env.DB.prepare(`SELECT id, company, one_liner, status, created_at FROM deals WHERE poster_id = ? ORDER BY created_at DESC LIMIT 20`).bind(id).all()).results;
+  const deals = (await env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.status, d.created_at FROM deals d WHERE d.poster_id = ? AND ${fitsSql(me)} ORDER BY d.created_at DESC LIMIT 20`).bind(id).all()).results;
   // What they actually back, learned from every yes or no on other members' deals
   const calls = (await env.DB.prepare(`SELECT s.yes, d.sector, d.round_type, d.min_tier FROM scores s JOIN deals d ON d.id = s.deal_id
     WHERE s.member_id = ? AND d.poster_id != ?`).bind(id, id).all()).results;
@@ -849,17 +853,51 @@ async function editMember(request, env, me, id) {
 
 // ---------------------------------------------------------------- deals
 
+// Framework Phase 2 (I6): a deal is visible only in its home hunt, and in hunts it was shared with.
+// Admins follow the same rule as every member (Nov 21), with one exception: a deal that carries
+// a report, because the Terms promise every report a look within 24 hours. Observers are unchanged.
+// Sharing a deal to another hunt is built but off (env.SHARING = "on" turns it on): it waits for the lawyer.
+let SHARING = false;
+const safeId = (v) => String(v).replace(/[^0-9a-zA-Z-]/g, "");
+const huntsOf = async (env, id) => new Set((await env.DB.prepare("SELECT hunt FROM memberships WHERE person = ?").bind(id).all()).results.map((r) => r.hunt));
+const sharedTo = async (env, id) => new Set((await env.DB.prepare(`SELECT x.deal FROM deal_shares x JOIN memberships m ON m.hunt = x.hunt
+  WHERE m.person = ? AND x.founder_ok_at IS NOT NULL`).bind(id).all()).results.map((r) => r.deal));
+async function withHunts(env, u) {
+  SHARING = env.SHARING === "on";
+  u.hunts = await huntsOf(env, u.id);
+  u.shared = SHARING ? await sharedTo(env, u.id) : new Set();
+  return u;
+}
+const REPORTED_SQL = `EXISTS (SELECT 1 FROM reports r WHERE (r.kind = 'deal' AND r.target_id = d.id)
+  OR (r.kind IN ('call', 'investment') AND r.target_id LIKE d.id || ':%')
+  OR (r.kind = 'update' AND r.target_id IN (SELECT id FROM deal_updates WHERE deal_id = d.id)))`;
+const inHunt = (me, d) => d.poster_id === me.id || me.role === "observer"
+  || (me.hunts instanceof Set && me.hunts.has(d.home_hunt))
+  || (me.shared instanceof Set && me.shared.has(d.id))
+  || (me.role === "admin" && !!d.reported);
+const inHuntSql = (me) => {
+  if (me.role === "observer") return "1";
+  const id = safeId(me.id);
+  return `(d.poster_id = '${id}' OR d.home_hunt IN (SELECT hunt FROM memberships WHERE person = '${id}')`
+    + (SHARING ? ` OR d.id IN (SELECT x.deal FROM deal_shares x JOIN memberships xm ON xm.hunt = x.hunt WHERE xm.person = '${id}' AND x.founder_ok_at IS NOT NULL)` : "")
+    + (me.role === "admin" ? ` OR ${REPORTED_SQL}` : "") + ")";
+};
+// Fields the access rule needs but members never see
+const bare = ({ reported, ...d }) => d;
+
 const DEAL_LIST_SQL = `
   SELECT d.*, COALESCE(u.name, u.email) AS poster_name, (SELECT name FROM hunts h WHERE h.id = d.home_hunt) AS hunt_name,
     (SELECT COUNT(*) FROM scores s WHERE s.deal_id = d.id) AS score_count,
     (SELECT AVG(total) FROM scores s WHERE s.deal_id = d.id) AS avg_total,
     (SELECT COUNT(*) FROM scores s WHERE s.deal_id = d.id AND s.yes = 1) AS yes_count,
     (SELECT COUNT(*) FROM investments i WHERE i.deal_id = d.id) AS investor_count,
-    (SELECT COALESCE(SUM(amount_cents),0) FROM investments i WHERE i.deal_id = d.id) AS invested_cents
+    (SELECT COALESCE(SUM(amount_cents),0) FROM investments i WHERE i.deal_id = d.id) AS invested_cents,
+    ${REPORTED_SQL} AS reported
   FROM deals d JOIN users u ON u.id = d.poster_id`;
 
 // Check-size tiers. A member sees deals whose smallest check is at or below their tier.
-// Admins, observers and members who haven't picked a tier see everything; posters always see their own.
+// Observers and members who haven't picked a tier see every check size; posters always see their own.
+// Admins follow their own check size like any member (Nov 21).
 const INVOLVEMENT = ["silent", "advice", "hands_on"];
 const tierLabel = (t) => {             // $500, $7.5k, $25k, $12,345, $1.5M
   const n = Number(t);
@@ -890,13 +928,14 @@ function notCleared(me) {
 }
 const longDate = (t) => new Date(t * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
 
-const seesAll = (me) => me.role !== "member" || !me.tier;
-const fits = (me, d) => d.poster_id === me.id || (cleared(me) && (seesAll(me) || d.min_tier == null || d.min_tier <= me.tier));
+const seesAll = (me) => me.role === "observer" || !me.tier;
+const fits = (me, d) => d.poster_id === me.id || (cleared(me) && (seesAll(me) || d.min_tier == null || d.min_tier <= me.tier) && inHunt(me, d));
 // The same rule as SQL, for queries with a LIMIT (deals table aliased as d; me.id is a server-made id)
 const fitsSql = (me) => {
-  const mine = `d.poster_id = '${String(me.id).replace(/[^0-9a-zA-Z-]/g, "")}'`;
+  const mine = `d.poster_id = '${safeId(me.id)}'`;
   if (!cleared(me)) return `(${mine})`;
-  return seesAll(me) ? "1" : `(d.min_tier IS NULL OR d.min_tier <= ${Number(me.tier)} OR ${mine})`;
+  const size = seesAll(me) ? "1" : `(d.min_tier IS NULL OR d.min_tier <= ${Number(me.tier)})`;
+  return `(${mine} OR (${size} AND ${inHuntSql(me)}))`;
 };
 
 // The investor statement (I16). Its exact wording is stored with every statement, so changing it means a new version.
@@ -960,7 +999,7 @@ async function myScored(env, me) {
 async function listDeals(env, me) {
   const { results } = await env.DB.prepare(DEAL_LIST_SQL + " ORDER BY d.created_at DESC").all();
   const [scored, blocked] = await Promise.all([myScored(env, me), blockedIds(env, me)]);
-  return json({ deals: results.filter((d) => fits(me, d) && !blocked.has(d.poster_id)).map((d) => ({ ...hideScores(d, me, scored), i_scored: scored.has(d.id) })) });
+  return json({ deals: results.filter((d) => fits(me, d) && !blocked.has(d.poster_id)).map((d) => ({ ...hideScores(bare(d), me, scored), i_scored: scored.has(d.id) })) });
 }
 
 // The company's own place to invest. Secure links only: members may follow it to sign and send money.
@@ -1074,8 +1113,9 @@ async function createDeal(request, env, me, ctx) {
   await recordCall(env, id, me.id);
   if (fromRec) await deleteRecording(env, me, recId); // the transcript goes once the deal is posted
   const name = me.name || me.email;
-  await notify(env, { type: "deal_posted", deal: { id, company: f.company, one_liner: f.one_liner, poster: name } });
-  if (ctx) ctx.waitUntil(emailNewDeal(env, { id, company: f.company, one_liner: f.one_liner, round_type: f.round_type, min_tier: f.min_tier, poster: name, poster_id: me.id }));
+  const inHome = (await env.DB.prepare("SELECT person FROM memberships WHERE hunt = ?").bind(home).all()).results.map((r) => r.person);
+  await notify(env, { type: "deal_posted", deal: { id, company: f.company, one_liner: f.one_liner, poster: name } }, inHome);   // only the deal's hunt hears about it
+  if (ctx) ctx.waitUntil(emailNewDeal(env, { id, company: f.company, one_liner: f.one_liner, round_type: f.round_type, min_tier: f.min_tier, poster: name, poster_id: me.id, home_hunt: home }));
   return json({ ok: true, id });
 }
 
@@ -1182,7 +1222,7 @@ async function getDeal(env, me, id) {
   const introInfo = { count: intros.results.length, mine: intros.results.some((x) => x.member_id === me.id),
     who: canSeeIntros ? intros.results.map((x) => ({ name: x.name, at: x.created_at })) : [] };
   const pledges = await pledgeSummary(env, me, id, deal.poster_id);
-  const shown = hideScores(deal, me, new Set(scores.results.some((x) => x.member_id === me.id) ? [deal.id] : []));
+  const shown = hideScores(bare(deal), me, new Set(scores.results.some((x) => x.member_id === me.id) ? [deal.id] : []));
   const nameOf = async (uid) => uid ? (await env.DB.prepare("SELECT COALESCE(name, email) AS n FROM users WHERE id = ?").bind(uid).first())?.n?.split("@")[0] || null : null;
   const [pendingName, outcomeName, confirmName] = await Promise.all([nameOf(deal.pending_by), nameOf(deal.outcome_by), nameOf(deal.outcome_confirmed_by)]);
   const outcomeInfo = { pending_name: pendingName, by_name: outcomeName, confirmed_name: confirmName, mine_pending: deal.pending_by === me.id };
@@ -1204,6 +1244,29 @@ async function updateDeal(request, env, me, id) {
     const row = { ...f, status: STATUSES.includes(b.status) ? b.status : deal.status, updated_at: now() };
     const cols = Object.keys(row);
     await env.DB.prepare(`UPDATE deals SET ${cols.map((c) => c + " = ?").join(", ")} WHERE id = ?`).bind(...cols.map((c) => row[c]), id).run();
+  }
+  await notify(env, { type: "changed", what: "deal", id });
+  return json({ ok: true });
+}
+
+// Framework Phase 2, shares (I10): a deal leaves its home hunt only with the founder's yes. Whoever brought the
+// deal shares it to another hunt they are in and states that the founder agreed; that statement is kept with its time.
+// Off until env.SHARING = "on": whether sharing a deal wider counts as advertising a round is with the lawyer.
+async function shareDeal(request, env, me, id, action) {
+  if (env.SHARING !== "on") throw new HttpError(403, "not_open", "Sharing a deal with another hunt isn't open yet.");
+  const deal = await env.DB.prepare("SELECT poster_id, home_hunt FROM deals WHERE id = ?").bind(id).first();
+  if (!deal) throw new HttpError(404, "not_found", "Deal not found.");
+  if (deal.poster_id !== me.id) throw new HttpError(403, "forbidden", "Only whoever brought the deal can share it.");
+  const b = await readJson(request);
+  const hunt = typeof b.hunt === "string" && /^[0-9a-f-]{36}$/.test(b.hunt) ? b.hunt : null;
+  if (!hunt || !me.hunts.has(hunt)) bad("Choose a hunt you're in.");
+  if (action === "unshare") {
+    await env.DB.prepare("DELETE FROM deal_shares WHERE deal = ? AND hunt = ?").bind(id, hunt).run();
+  } else {
+    if (hunt === deal.home_hunt) bad("That's already the deal's home hunt.");
+    if (b.founder_ok !== true) bad("A deal leaves its hunt only with the founder's yes. Confirm the founder agreed.");
+    const t = now();
+    await env.DB.prepare("INSERT OR IGNORE INTO deal_shares (deal, hunt, shared_by, founder_ok_at, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, hunt, me.id, t, t).run();
   }
   await notify(env, { type: "changed", what: "deal", id });
   return json({ ok: true });
@@ -1501,8 +1564,8 @@ async function emailAdmins(env, subject, text, rows, exceptId) {
 
 // ---------------------------------------------------------------- export (the "shared sheet")
 
-async function exportCsv(env) {
-  const { results } = await env.DB.prepare(DEAL_LIST_SQL + " ORDER BY d.created_at").all();
+async function exportCsv(env, me) {
+  const results = (await env.DB.prepare(DEAL_LIST_SQL + " ORDER BY d.created_at").all()).results.filter((d) => fits(me, d));
   const inv = (await env.DB.prepare(
     "SELECT i.deal_id, COALESCE(u.name,u.email) AS name, i.amount_cents FROM investments i JOIN users u ON u.id = i.member_id").all()).results;
   const byDeal = {};
@@ -1941,7 +2004,7 @@ function backupHtml(app, date) {
   return mailLayout(app,
     mailKicker(escHtml(month)) +
     mailTitle("Monthly backup") +
-    mailPara("Every deal, call and investment is in the spreadsheet attached. It opens in Excel or Google Sheets.") +
+    mailPara("Every deal in your hunts, with its calls and investments, is in the spreadsheet attached. It opens in Excel or Google Sheets.") +
     mailPara("Keep it somewhere safe. It holds members' deals and terms.", 0),
     " Sent to admins on the first of each month.", false);
 }
@@ -2062,9 +2125,11 @@ async function sendMail(env, to, subject, text, html, extra = {}) {
 
 // A short heads-up to members when someone shares a new deal
 async function emailNewDeal(env, d) {
+  // Only the deal's hunt, at this check size, cleared, and not anyone who blocked the bringer
   const { results } = await env.DB.prepare(`SELECT email, name FROM users WHERE status = 'active' AND notify_deals = 1 AND id != ?
-    AND (role != 'member' OR tier IS NULL OR ? IS NULL OR tier >= ?) AND ${clearedSql()}
-    AND id NOT IN (SELECT user_id FROM blocks WHERE blocked_id = ?)`).bind(d.poster_id, d.min_tier, d.min_tier, d.poster_id).all();   // and not to anyone who blocked the bringer   // only members at this check size
+    AND (tier IS NULL OR ? IS NULL OR tier >= ?) AND ${clearedSql()}
+    AND id IN (SELECT person FROM memberships WHERE hunt = ?)
+    AND id NOT IN (SELECT user_id FROM blocks WHERE blocked_id = ?)`).bind(d.poster_id, d.min_tier, d.min_tier, d.home_hunt, d.poster_id).all();
   for (const u of results) await sendMail(env, u.email, ...newDealMail(env, d, u));
 }
 
@@ -2084,13 +2149,14 @@ async function sendWeeklyDigest(env) {
   const monthStart = Math.floor(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1) / 1000);
   const inbound = (await env.DB.prepare("SELECT COUNT(*) AS n FROM applications WHERE status = 'open' AND created_at > ?").bind(weekAgo).first()).n;
   const [newDeals, members, contributors] = await Promise.all([
-    env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.min_tier, d.poster_id, COALESCE(u.name,u.email) AS poster
+    env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.min_tier, d.poster_id, d.home_hunt, COALESCE(u.name,u.email) AS poster
       FROM deals d JOIN users u ON u.id = d.poster_id WHERE d.created_at > ? ORDER BY d.created_at DESC`).bind(weekAgo).all(),
     env.DB.prepare("SELECT id, email, name, role, tier, created_at, accredited, statement_at FROM users WHERE status = 'active' AND notify_digest = 1").all(),
     env.DB.prepare(`SELECT COALESCE(u.name,u.email) AS name, COUNT(*) AS n FROM deals d JOIN users u ON u.id = d.poster_id
       WHERE d.created_at >= ? GROUP BY d.poster_id ORDER BY n DESC`).bind(monthStart).all(),
   ]);
   for (const m of members.results) {
+    await withHunts(env, m);   // the same rule as the app: only deals in their hunts
     const mail = await digestMail(env, m, newDeals.results, contributors.results, inbound);
     if (mail) await sendMail(env, m.email, ...mail);
   }
@@ -2307,7 +2373,7 @@ async function sendTestEmails(env, me, sample = false) {
   const [latest, newDeals, contributors, inbound] = await Promise.all([
     env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.round_type, COALESCE(u.name,u.email) AS poster
       FROM deals d JOIN users u ON u.id = d.poster_id WHERE ${fitsSql(me)} ORDER BY d.created_at DESC LIMIT 1`).first(),
-    env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.min_tier, d.poster_id, COALESCE(u.name,u.email) AS poster
+    env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.min_tier, d.poster_id, d.home_hunt, COALESCE(u.name,u.email) AS poster
       FROM deals d JOIN users u ON u.id = d.poster_id WHERE d.created_at > ? ORDER BY d.created_at DESC`).bind(weekAgo).all(),
     env.DB.prepare(`SELECT COALESCE(u.name,u.email) AS name, COUNT(*) AS n FROM deals d JOIN users u ON u.id = d.poster_id
       WHERE d.created_at >= ? GROUP BY d.poster_id ORDER BY n DESC`).bind(monthStart).all(),
@@ -2326,14 +2392,16 @@ async function sendTestEmails(env, me, sample = false) {
   return json({ ok: true, to: me.email });
 }
 
-// 1st of each month: email admins a copy of the full deals sheet
+// 1st of each month: email each admin a copy of the deals sheet. An admin sees only the deals any member in
+// their place would (Nov 21), so each copy holds that admin's hunts. The whole record is still safe: the ledger
+// proves every call, and Cloudflare keeps its own copies of the database.
 async function sendMonthlyBackup(env) {
-  const csv = await (await exportCsv(env)).text();
   const date = new Date().toISOString().slice(0, 10);
-  const admins = (await env.DB.prepare("SELECT email FROM users WHERE status = 'active' AND role = 'admin'").all()).results;
+  const admins = (await env.DB.prepare("SELECT * FROM users WHERE status = 'active' AND role = 'admin'").all()).results;
   for (const a of admins) {
+    const csv = await (await exportCsv(env, await withHunts(env, a))).text();
     await sendMail(env, a.email, `Stag Hunt monthly backup (${date})`,
-      "Every deal, call and investment in Stag Hunt is in the spreadsheet attached. Keep it somewhere safe. It holds members' deals and terms.",
+      "Every deal in your hunts, with its calls and investments, is in the spreadsheet attached. Keep it somewhere safe. It holds members' deals and terms.",
       backupHtml(env.APP_NAME, date),
       { attachments: [{ content: new TextEncoder().encode(csv), filename: `stag-hunt-deals-${date}.csv`, type: "text/csv", disposition: "attachment" }] });
   }

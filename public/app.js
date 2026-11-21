@@ -506,10 +506,10 @@ async function viewDealForm(id) {
         <div class="grid2"><div><label for="f-round_type">Type of round</label><select id="f-round_type" name="round_type" required>
           ${ROUNDS.map((r) => `<option ${d.round_type === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
           ${f("raise_amount", "How much are they raising?", { ph: "$1.5M" })}</div>
-        <div class="grid3">${f("valuation_cap", "Valuation cap", { ph: "$12M post" })}${f("discount", "Discount", { ph: "20%" })}<div><label for="f-min_tier">Smallest check they take ($)</label><input id="f-min_tier" name="min_tier" required inputmode="decimal" maxlength="20" placeholder="25,000" value="${money(d.min_tier)}"><div class="hint">Members see this deal if their check size is this or more.</div></div></div>
+        <div class="grid3">${f("valuation_cap", "Valuation cap", { ph: "$12M post" })}${f("discount", "Discount", { ph: "20%" })}<div><label for="f-min_tier">Smallest check they take ($)</label><input id="f-min_tier" name="min_tier" required inputmode="decimal" maxlength="20" placeholder="25,000" value="${money(d.min_tier)}"><div class="hint">Members of the deal's hunt see it if their check size is this or more.</div></div></div>
         <div class="grid2">${f("deadline", "When does it close?", { ph: "Nov 30, or rolling", max: 40 })}${hunts.length > 1
-          ? `<div><label for="f-home_hunt">Which hunt is it for?</label><select id="f-home_hunt" name="home_hunt" required><option value="">Choose a hunt</option>${hunts.map((h) => `<option value="${h.id}">${esc(h.name)}</option>`).join("")}</select></div>`
-          : "<div></div>"}</div>
+          ? `<div><label for="f-home_hunt">Which hunt is it for?</label><select id="f-home_hunt" name="home_hunt" required><option value="">Choose a hunt</option>${hunts.map((h) => `<option value="${h.id}">${esc(h.name)}</option>`).join("")}</select><div class="hint">Only this hunt sees the deal.</div></div>`
+          : hunts.length === 1 ? `<div><label>Who sees it</label><div class="hint">Only members of ${esc(hunts[0].name)}.</div></div>` : "<div></div>"}</div>
         ${f("invest_url", "Where members invest (optional)", { ph: "https://… the company's SAFE signing page, Wefunder page or wire instructions", max: 300, hint: "The founder's own link. Members invest straight with the company; Stag Hunt never touches the money. Share it only if the founder is happy for the group to have it." })}
         <label class="check"><input type="checkbox" name="accredited_only" ${d.accredited_only ? "checked" : ""}>Only open to accredited investors</label>
         <label class="check"><input type="checkbox" name="round_public" ${d.round_public ? "checked" : ""}>This round is already public (fine to mention outside the group)</label>
@@ -1187,7 +1187,7 @@ async function viewHunts(_, seq) {
         <form id="huntform"><label>Name</label><input name="name" required maxlength="60" placeholder="The Tuesday table">
           <button class="btn block" type="submit">Start the hunt</button><div class="msg err"></div></form>
         <p class="small" style="margin-top:12px">A hunt is a group that shares deals. Start one with the people you already trade deals with, then invite them.</p>
-        <p class="small muted">Today every deal reaches every member whose check fits. Hunts choosing what they share comes next.</p></div></div>
+        <p class="small muted">A deal is seen only by the hunt it's shared in. Not ready to share one yet? Start a hunt of your own, log the deal there, and invite people when the founder is ready.</p></div></div>
     </div>`;
   const hf = $("#huntform");
   hf.addEventListener("submit", (e) => { e.preventDefault(); submitting(hf, async () => { const r = await api("/api/hunts", formData(hf)); location.hash = "#/hunts/" + r.id; }); });

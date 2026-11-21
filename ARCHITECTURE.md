@@ -70,7 +70,17 @@ pledges and syndicates, non-accredited members, and whether open sign-up with th
 - Known gap: pledges still exist; the lawyer question on them is open.
 - Investor statement built Nov 19 (migration 0028, I16): investor_statements is append only and keeps the exact wording
   each person agreed to. fits and fitsSql in src/index.js apply it to every deal list, page, email, application and export.
-- Known gap: until Phase 2 (sharing), a cleared member sees every deal their check size fits, not only their hunts'.
+- Sharing, part one, built Nov 21 (not live until deployed): a deal is seen only in its home hunt (I6). One rule
+  (inHunt and inHuntSql in src/index.js) decides the app, the API, the export, the new-deal email, the live
+  notice and the Monday digest. A deal outside your hunts answers "not found", by direct link too.
+  Admins follow the same rule and their own check size. The one exception: an admin can open a deal that carries
+  a report, because the Terms promise a look within 24 hours. The monthly backup holds only the admin's own hunts.
+  Observers still see every deal (open question: the app reviewer's account).
+- Sharing, part two, built Nov 21 and switched off: a deal's bringer can share it to another hunt they are in,
+  stating the founder's yes (I10; migration 0030, deal_shares; /api/deals/<id>/share and /unshare). It stays off
+  until SHARING is set to "on" in wrangler.jsonc, which waits for the lawyer. With it off the table is never read,
+  so the code is safe to deploy before the migration runs. No screen for it yet.
+- Not built from Phase 2: hunt settings (sharing, listing, joining).
 - Report and block built Nov 20 (migration 0029): reports (who reported what, and why; every admin is emailed and
   the Terms promise a look within 24 hours) and blocks (one row per person blocked). Deal emails and the Monday
   digest skip deals from people the reader blocked, the same as the app.
