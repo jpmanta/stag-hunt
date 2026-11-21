@@ -2469,11 +2469,10 @@ async function googleCallback(request, env, url) {
 // Each clip is cached at the edge, and fresh clips are limited per visitor and per day.
 const VOICES = [
   { key: "jonathan", name: "Jonathan (the founder)", env: "JONATHAN_VOICE_ID" },   // his own voice; the id stays a secret
-  { key: "rachel", name: "Rachel", id: "21m00Tcm4TlvDq8ikWAM" },
-  { key: "adam", name: "Adam", id: "pNInz6obpgDQGcFmaJgB" },
-  { key: "bella", name: "Bella", id: "EXAVITQu4vr4xnSDxMaL" },
-  { key: "antoni", name: "Antoni", id: "ErXwobaYiN019PkySvjV" },
-  { key: "elli", name: "Elli", id: "MF3mGyEYCl7XYWbV9V6O" },
+  { key: "rachel", name: "Rachel, calm", id: "21m00Tcm4TlvDq8ikWAM" },
+  { key: "adam", name: "Adam, deep", id: "pNInz6obpgDQGcFmaJgB" },
+  { key: "bella", name: "Bella, soft", id: "EXAVITQu4vr4xnSDxMaL" },
+  { key: "antoni", name: "Antoni, warm", id: "ErXwobaYiN019PkySvjV" },
 ];
 const voiceId = (env, v) => v.id || env[v.env] || "";
 const READABLE = /^\/(|login|account|apply\/|contact\/|terms\/|privacy\/|pitch\/|track\/|learn\/|learn\/[a-z-]+\/)$/;

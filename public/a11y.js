@@ -105,19 +105,17 @@
 
   // ---------- Voices ----------
   let cloud = [], voicesLoaded = false;
+  // Five studio voices on public pages; the app (or a page with studio voices off) reads in the device's own voice.
   async function loadVoices() {
     const sel = document.getElementById("a11y-voice");
     if (!inApp && !voicesLoaded) { try { const r = await fetch("/api/voices"); if (r.ok) cloud = (await r.json()).voices || []; } catch {} }
     voicesLoaded = true;
-    const local = (window.speechSynthesis?.getVoices() || []).filter((v) => /^en/i.test(v.lang));
-    sel.innerHTML = (cloud.length ? `<optgroup label="Studio voices">${cloud.map((v) => `<option value="cloud:${v.key}">${v.name}</option>`).join("")}</optgroup>` : "")
-      + `<optgroup label="This device">${local.length ? local.map((v) => `<option value="device:${v.name}">${v.name.replace(/\s*\(.*\)$/, "")}</option>`).join("") : '<option value="device:">Default voice</option>'}</optgroup>`;
+    sel.hidden = sel.previousElementSibling.hidden = !cloud.length;
+    sel.innerHTML = cloud.map((v) => `<option value="cloud:${v.key}">${v.name}</option>`).join("");
     const want = get("voice");
-    if (want && [...sel.options].some((o) => o.value === want)) sel.value = want;
-    else if (cloud.length) sel.value = "cloud:" + cloud[0].key;
-    if (inApp) sel.insertAdjacentHTML("afterend", sel.nextElementSibling?.classList.contains("hint") ? "" : '<p class="hint">In the app, reading stays on your device, so deals never leave it.</p>');
+    sel.value = cloud.some((v) => "cloud:" + v.key === want) ? want : cloud.length ? "cloud:" + cloud[0].key : "";
+    if (inApp && !sel.nextElementSibling?.classList.contains("hint")) sel.insertAdjacentHTML("afterend", '<p class="hint">In the app, pages are read in your device&rsquo;s own voice, so deals never leave it.</p>');
   }
-  if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => { if (voicesLoaded) loadVoices(); };
 
   // ---------- Reading aloud ----------
   const BLOCKS = "h1,h2,h3,h4,p,li,blockquote,figcaption,dt,dd,td,.notice,.empty .et";
@@ -135,8 +133,8 @@
     const chunks = (text) => { const out = []; let cur = ""; for (const s of text.match(/[^.!?]+[.!?]*\s*/g) || [text]) { if ((cur + s).length > 500 && cur) { out.push(cur.trim()); cur = ""; } cur += s; } if (cur.trim()) out.push(cur.trim()); return out; };
     const sayDevice = (text, my) => new Promise((done) => {
       if (!window.speechSynthesis) return done();
-      const u = new SpeechSynthesisUtterance(text), name = voice().replace(/^device:/, "");
-      const v = speechSynthesis.getVoices().find((x) => x.name === name); if (v) u.voice = v;
+      const u = new SpeechSynthesisUtterance(text), en = speechSynthesis.getVoices().filter((x) => /^en/i.test(x.lang));
+      const v = en.find((x) => x.default) || en.find((x) => /en-US/i.test(x.lang) && x.localService) || en[0]; if (v) u.voice = v;
       u.rate = get("rate"); u.onend = u.onerror = () => done();
       if (my === token) speechSynthesis.speak(u); else done();
     });

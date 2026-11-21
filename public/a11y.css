@@ -22,7 +22,7 @@
 #a11y-panel{position:fixed;right:16px;bottom:16px;z-index:70;width:min(340px,calc(100vw - 24px));max-height:min(78vh,640px);overflow:auto;overscroll-behavior:contain;
   background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:16px 18px 12px;
   box-shadow:0 14px 44px -12px rgba(20,36,74,.28);font:400 15px/1.4 var(--serif)}
-#a11y-panel[hidden]{display:none}
+#a11y-panel[hidden],#a11y-panel [hidden]{display:none!important}
 /* The panel keeps its own look on every page */
 #a11y-panel *,#a11y-bar *,#a11y-toggle *{text-transform:none!important;letter-spacing:normal!important;word-spacing:normal!important;font-variant:normal!important;box-sizing:border-box}
 #a11y-panel label,#a11y-panel small,#a11y-panel b,#a11y-panel span,#a11y-panel p,#a11y-panel button,#a11y-panel select,#a11y-panel h2,#a11y-panel h3,#a11y-panel output{font-family:var(--serif)!important;margin:0}
