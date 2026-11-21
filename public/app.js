@@ -470,8 +470,8 @@ async function viewDealForm(id) {
     : `<input id="f-${name}" name="${name}" ${opts.req ? "required" : ""} maxlength="${opts.max || 120}" placeholder="${esc(opts.ph || "")}" value="${esc(d[name] || "")}">`}
     ${opts.hint ? `<div class="hint">${opts.hint}</div>` : ""}</div>`;
   v.innerHTML = `
-    ${!id && !rd && !app ? `<a class="rec-cta" href="#/record"><b>Let the founder pitch out loud.</b><span>Send them a link, or record the call in person. The deal fills itself in. →</span></a>` : ""}
     <div class="pagehead"><div><h1>${id ? esc(d.company) : "Share a deal"}</h1></div></div>
+    ${!id && !rd && !app ? `<a class="rec-cta" href="#/record"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="tx"><b>Or let the founder pitch it out loud</b><span>Send them a link, or record the call in person. The deal fills itself in.</span></span><span class="go">Start →</span></a>` : ""}
     <form id="dealform" class="stack-lg" style="max-width:760px">
       ${app ? `<div class="notice"><p style="margin:0"><b>From ${esc(app.founder_name)}'s application.</b> Their answers are filled in. Check them against what you heard on the call, say how the call went under How did you find it, then make your own call. The deal will show that the founder applied.</p></div>` : ""}
       ${rd ? (() => {

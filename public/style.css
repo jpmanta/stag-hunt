@@ -493,10 +493,16 @@ body.observer #updform,body.observer #outcomeform,body.observer #nomform,body.ob
   --sq:#D9D2C1;--sq2:#ECE8DF;--gilt:#B39556}
 
 /* ---------- Record a founder call ---------- */
-.rec-cta{display:block;max-width:760px;margin:0 0 28px;padding:18px 20px;background:var(--forest);color:var(--panel);border-radius:2px;text-decoration:none}
-.rec-cta b{display:block;font:600 22px/1.2 var(--serif)}
-.rec-cta span{display:block;margin-top:6px;font-size:14px;color:#cfd8c8}
-.rec-cta:hover{background:#243e2a}
+/* The other way to share a deal: a quiet card under the title, never louder than the page */
+.rec-cta{display:flex;align-items:center;gap:16px;max-width:760px;margin:0 0 28px;padding:16px 18px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);color:var(--fg);text-decoration:none;transition:border-color .2s var(--ease)}
+.rec-cta .ic{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:color-mix(in srgb,var(--forest) 8%,var(--panel));color:var(--forest)}
+.rec-cta .ic svg{width:18px;height:18px}
+.rec-cta .tx{flex:1;min-width:0}
+.rec-cta b{display:block;font:600 19px/1.25 var(--serif)}
+.rec-cta .tx span{display:block;margin-top:2px;font-size:13.5px;color:var(--muted)}
+.rec-cta .go{flex:none;font-size:13.5px;font-weight:500;color:var(--forest);white-space:nowrap}
+.rec-cta:hover{border-color:var(--forest)}
+@media (max-width:520px){.rec-cta .go{display:none}}
 .rec-terms p{color:var(--fg);font-size:14px}
 .rec-terms p+p{margin-top:10px}
 .rec-terms b{font-weight:600}
