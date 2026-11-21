@@ -6,73 +6,71 @@
 @font-face{font-family:"OpenDyslexic";font-weight:700;font-display:swap;src:url(/fonts/opendyslexic-700.woff2) format("woff2")}
 
 /* ---------- The button and the panel ---------- */
-.a11y-skip{position:fixed;left:12px;top:-60px;z-index:100;background:var(--panel);color:var(--fg);border:1px solid var(--gold-line,#b89a5e);padding:10px 14px;font:500 14px var(--sans);text-decoration:none;transition:top .2s}
+/* Public pages zoom themselves to fit wide screens (--z); the reading help keeps its own true size. */
+#a11y-toggle,#a11y-panel,#a11y-bar,.a11y-skip{zoom:calc(1 / var(--z,1))}
+.a11y-skip{position:fixed;left:12px;top:-60px;z-index:100;background:var(--forest);color:var(--panel);padding:10px 14px;border-radius:6px;font:500 14px var(--sans);text-decoration:none;transition:top .2s}
 .a11y-skip:focus{top:12px}
-#a11y-toggle{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;align-items:center;gap:8px;height:42px;padding:0 15px 0 12px;border-radius:21px;
-  background:var(--panel);color:var(--forest);border:1px solid var(--gold-line,#b89a5e);font:500 13px var(--sans);cursor:pointer;
-  box-shadow:0 8px 22px -12px rgba(20,36,74,.35);transition:box-shadow .3s,transform .3s}
+#a11y-toggle{position:fixed;right:16px;bottom:16px;z-index:60;display:flex;align-items:center;gap:9px;height:44px;padding:0 18px 0 14px;border-radius:22px;
+  background:var(--forest);color:var(--panel);border:0;font:500 17px/1 var(--serif);cursor:pointer;
+  box-shadow:0 0 0 1px var(--gold-line,#b89a5e),0 0 0 4px var(--panel),0 8px 22px -10px rgba(20,36,74,.4);transition:box-shadow .3s}
 #a11y-toggle svg{width:19px;height:19px}
-#a11y-toggle:hover{box-shadow:0 10px 26px -10px rgba(20,36,74,.45)}
+#a11y-toggle:hover{box-shadow:0 0 0 1px var(--gold-line,#b89a5e),0 0 0 4px var(--panel),0 10px 26px -8px rgba(20,36,74,.5)}
 #a11y-toggle[aria-expanded=true]{opacity:0;pointer-events:none}
-body:has(.tabbar) #a11y-toggle{right:16px;bottom:16px}
-@media(max-width:900px){body:has(.tabbar) #a11y-toggle{bottom:calc(84px + env(safe-area-inset-bottom,0px));padding:0;width:42px;justify-content:center}body:has(.tabbar) #a11y-toggle span{display:none}}
-@media(max-width:600px){#a11y-toggle{padding:0;width:42px;justify-content:center}#a11y-toggle span{display:none}}
+@media(max-width:900px){body:has(.tabbar) #a11y-toggle{bottom:calc(84px + env(safe-area-inset-bottom,0px));padding:0;width:44px;justify-content:center}body:has(.tabbar) #a11y-toggle span{display:none}}
+@media(max-width:600px){#a11y-toggle{padding:0;width:44px;justify-content:center}#a11y-toggle span{display:none}}
 
-#a11y-panel{position:fixed;right:18px;bottom:18px;z-index:70;width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 36px);overflow:auto;
-  background:var(--panel);color:var(--fg);border:1px solid var(--gold-line,#b89a5e);border-radius:14px;padding:20px 20px 14px;
-  box-shadow:0 30px 60px -24px rgba(20,36,74,.45);font:400 14px/1.45 var(--sans)}
+#a11y-panel{position:fixed;right:16px;bottom:16px;z-index:70;width:min(340px,calc(100vw - 24px));max-height:min(78vh,640px);overflow:auto;overscroll-behavior:contain;
+  background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:16px 18px 12px;
+  box-shadow:0 14px 44px -12px rgba(20,36,74,.28);font:400 15px/1.4 var(--serif)}
 #a11y-panel[hidden]{display:none}
 /* The panel keeps its own look on every page */
 #a11y-panel *,#a11y-bar *,#a11y-toggle *{text-transform:none!important;letter-spacing:normal!important;word-spacing:normal!important;font-variant:normal!important;box-sizing:border-box}
-#a11y-panel label,#a11y-panel small,#a11y-panel b,#a11y-panel span,#a11y-panel p,#a11y-panel button,#a11y-panel select{font-family:var(--sans)!important;margin:0}
-#a11y-panel .seg .f-atk{font-family:"Atkinson Hyperlegible",sans-serif!important}
-#a11y-panel .seg .f-dys{font-family:"OpenDyslexic",sans-serif!important}
-#a11y-panel h2{font-family:var(--serif)!important}
-@media(max-width:600px){#a11y-panel{right:12px;left:12px;bottom:12px;width:auto;max-height:78vh}}
-#a11y-panel h2{font:500 22px/1.2 var(--serif);margin:0;color:var(--fg)}
-#a11y-panel .a11y-intro{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+#a11y-panel label,#a11y-panel small,#a11y-panel b,#a11y-panel span,#a11y-panel p,#a11y-panel button,#a11y-panel select,#a11y-panel h2,#a11y-panel h3,#a11y-panel output{font-family:var(--serif)!important;margin:0}
+#a11y-panel .seg .f-atk{font-family:"Atkinson Hyperlegible",sans-serif!important;font-size:13px}
+#a11y-panel .seg .f-dys{font-family:"OpenDyslexic",sans-serif!important;font-size:11px}
+@media(max-width:600px){#a11y-panel{right:12px;left:12px;bottom:12px;width:auto}}
 #a11y-panel .a11y-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-#a11y-panel .a11y-x{border:0;background:none;font:300 26px/1 var(--sans);color:var(--muted);cursor:pointer;padding:0 2px}
-#a11y-panel section{padding:14px 0;border-top:1px solid var(--line)}
-#a11y-panel section:first-of-type{margin-top:14px}
-#a11y-panel h3{font:500 11px/1.4 var(--sans)!important;letter-spacing:.14em!important;text-transform:uppercase;color:var(--gold,#9a7b3f);margin:0 0 10px}
-#a11y-panel .lbl{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 6px!important}
-#a11y-panel .row{display:flex;gap:8px;flex-wrap:wrap}
-#a11y-panel .hint{font-size:12.5px;color:var(--faint);margin:8px 0 0}
-#a11y-panel button.b{flex:1;min-height:38px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);font:500 13.5px var(--sans);cursor:pointer;transition:border-color .2s,background-color .2s}
+#a11y-panel h2{font:500 24px/1.1 var(--serif);color:var(--forest)}
+#a11y-panel .a11y-intro{margin:4px 0 0;color:var(--muted);font-size:14.5px;font-style:italic}
+#a11y-panel .a11y-x{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font:300 20px/1 var(--sans)!important;cursor:pointer;padding:0}
+#a11y-panel section{padding:12px 0 10px;border-top:1px solid var(--line)}
+#a11y-panel section:first-of-type{margin-top:12px}
+#a11y-panel h3{font:500 11.5px/1.2 var(--serif);letter-spacing:.16em!important;text-transform:uppercase!important;color:var(--gold,#86692B);margin:0 0 8px}
+#a11y-panel .lbl{display:block;font-size:14.5px;color:var(--muted);margin:10px 0 6px!important}
+#a11y-panel .row{display:flex;gap:6px}
+#a11y-panel .hint{font-size:13px;line-height:1.35;color:var(--muted);font-style:italic;margin:6px 0 0}
+#a11y-panel button.b{flex:1;min-height:34px;padding:6px 14px;border:1px solid var(--line);border-radius:17px;background:var(--panel);color:var(--fg);font:500 15px var(--serif);cursor:pointer;transition:border-color .2s,background-color .2s}
 #a11y-panel button.b:hover{border-color:var(--forest)}
-#a11y-panel button.b.go{background:var(--forest);border-color:var(--forest);color:var(--panel)}
-#a11y-panel .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-#a11y-panel .seg button{flex:1;min-height:36px;padding:6px 4px;border:0;border-left:1px solid var(--line);background:var(--panel);color:var(--fg);font:500 12.5px var(--sans);cursor:pointer;transition:background-color .2s}
-#a11y-panel .seg button:first-child{border-left:0}
-#a11y-panel .seg button[aria-pressed=true]{background:var(--forest);color:var(--panel)}
-#a11y-panel .seg .f-atk{font-family:"Atkinson Hyperlegible",sans-serif}
-#a11y-panel .seg .f-dys{font-family:"OpenDyslexic",sans-serif;font-size:11.5px}
-#a11y-panel .step{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:max-content}
-#a11y-panel .step button{width:46px;height:36px;border:0;background:var(--panel);color:var(--fg);font:600 14px var(--sans);cursor:pointer}
-#a11y-panel .step output{min-width:64px;text-align:center;font:500 13.5px var(--sans);border-left:1px solid var(--line);border-right:1px solid var(--line);line-height:36px}
-#a11y-panel select{width:100%;min-height:38px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);font:400 13.5px var(--sans)}
-#a11y-panel .sw{display:flex;gap:12px;align-items:flex-start;padding:8px 0;cursor:pointer;margin:0;font-size:13.5px}
+#a11y-panel button.b.go{flex:3;background:var(--forest);border-color:var(--forest);color:var(--panel)}
+#a11y-panel .seg{display:flex;gap:5px}
+#a11y-panel .seg button{flex:1;min-height:32px;padding:4px 6px;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--fg);font:500 14px var(--serif);cursor:pointer;transition:background-color .2s,border-color .2s}
+#a11y-panel .seg button:hover{border-color:var(--forest)}
+#a11y-panel .seg button[aria-pressed=true]{background:var(--forest);border-color:var(--forest);color:var(--panel)}
+#a11y-panel .step{display:flex;align-items:center;justify-content:space-between;padding:3px;border-radius:19px;background:var(--sunk,#F3EFE7)}
+#a11y-panel .step button{width:40px;height:30px;border:0;border-radius:15px;background:var(--panel);color:var(--fg);font:500 15px var(--serif);cursor:pointer;box-shadow:0 1px 2px rgba(20,36,74,.12)}
+#a11y-panel .step output{flex:1;text-align:center;font:500 15px var(--serif)}
+#a11y-panel select{width:100%;min-height:34px;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);font:400 15px var(--serif)}
+#a11y-panel .sw{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer;margin:0}
 #a11y-panel .sw input{position:absolute;opacity:0;width:1px;height:1px}
-#a11y-panel .sw i{flex:none;width:36px;height:21px;border-radius:11px;background:var(--line);position:relative;margin-top:1px;transition:background-color .25s}
-#a11y-panel .sw i::after{content:"";position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;background:#fff;transition:transform .25s}
+#a11y-panel .sw i{flex:none;width:34px;height:20px;border-radius:10px;background:var(--line);position:relative;margin-top:1px;transition:background-color .25s}
+#a11y-panel .sw i::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .25s}
 #a11y-panel .sw input:checked+i{background:var(--forest)}
-#a11y-panel .sw input:checked+i::after{transform:translateX(15px)}
+#a11y-panel .sw input:checked+i::after{transform:translateX(14px)}
 #a11y-panel .sw input:focus-visible+i{box-shadow:0 0 0 3px rgba(184,154,94,.35)}
-#a11y-panel .sw b{display:block;font-weight:500;font-size:13.5px}
-#a11y-panel .sw small{display:block;color:var(--muted);font-size:12.5px}
-#a11y-panel .tints{display:flex;gap:7px;flex-wrap:wrap}
-#a11y-panel .tints button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);cursor:pointer;background:var(--panel);color:var(--muted);font-size:15px;padding:0}
+#a11y-panel .sw b{display:block;font-weight:500;font-size:15px;line-height:1.25}
+#a11y-panel .sw small{display:block;color:var(--muted);font-size:13px;line-height:1.3}
+#a11y-panel .tints{display:flex;gap:6px;flex-wrap:wrap}
+#a11y-panel .tints button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);cursor:pointer;background:var(--panel);color:var(--muted);font-size:13px;padding:0}
 #a11y-panel .tints button[aria-pressed=true]{box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--forest)}
-#a11y-panel .foot{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--faint)}
-#a11y-panel .foot button{border:0;background:none;color:var(--forest);font:500 13px var(--sans);text-decoration:underline;cursor:pointer;padding:0}
+#a11y-panel .foot{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+#a11y-panel .foot button{border:0;background:none;color:var(--forest);font:500 14px var(--serif);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0}
 #a11y-panel :focus-visible{outline:2px solid var(--gold-line,#b89a5e);outline-offset:2px}
 
 /* The bar while reading aloud */
 #a11y-bar{position:fixed;left:50%;bottom:18px;z-index:65;translate:-50% 0;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;
-  background:var(--panel);border:1px solid var(--gold-line,#b89a5e);border-radius:24px;box-shadow:0 14px 34px -14px rgba(20,36,74,.4);font:500 13px var(--sans);color:var(--fg)}
+  background:var(--panel);border:1px solid var(--gold-line,#b89a5e);border-radius:24px;box-shadow:0 14px 34px -14px rgba(20,36,74,.4);font:500 15px var(--serif);color:var(--fg)}
 #a11y-bar[hidden]{display:none}
-#a11y-bar button{height:32px;padding:0 14px;border-radius:16px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:500 13px var(--sans);cursor:pointer}
+#a11y-bar button{height:32px;padding:0 14px;border-radius:16px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:500 15px var(--serif);cursor:pointer}
 body:has(.tabbar) #a11y-bar{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 @media(min-width:901px){body:has(.tabbar) #a11y-bar{bottom:18px}}
 .a11y-reading{background:color-mix(in srgb,var(--gold-line,#b89a5e) 18%,transparent)!important;border-radius:4px;box-shadow:0 0 0 4px color-mix(in srgb,var(--gold-line,#b89a5e) 18%,transparent);transition:background-color .3s}
