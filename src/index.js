@@ -115,6 +115,8 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && p === "/api/contact") return contactUs(request, env);
   if (m === "POST" && p === "/api/apply") return applyFounder(request, env);
   if (m === "GET" && p === "/api/ledger/fingerprints") return ledgerFingerprints(env);
+  if (m === "GET" && p === "/api/voices") return listVoices(env);
+  if (m === "POST" && p === "/api/voice") return speak(request, env, url);
   if ((mt = p.match(/^\/api\/pitch\/([A-Za-z0-9_-]{40,60})(?:\/(start|done|seg\/(\d{1,3})))?$/))) {
     if (m === "GET" && !mt[2]) return getPitch(env, mt[1]);
     if (m === "POST" && mt[2] === "start") return startPitch(request, env, mt[1]);
@@ -2458,4 +2460,55 @@ async function googleCallback(request, env, url) {
   h.append("Set-Cookie", clear["Set-Cookie"]);
   h.append("Set-Cookie", s.cookie);
   return new Response(null, { status: 302, headers: h });
+}
+
+
+// ------------------------------------------------------------ reading aloud (public pages only)
+// Reading help can read public pages in studio voices from ElevenLabs. It speaks only text that is
+// really on that public page, never anything from the members' app, so no deal or call ever leaves the site.
+// Each clip is cached at the edge, and fresh clips are limited per visitor and per day.
+const VOICES = [
+  { key: "jonathan", name: "Jonathan (the founder)", env: "JONATHAN_VOICE_ID" },   // his own voice; the id stays a secret
+  { key: "rachel", name: "Rachel", id: "21m00Tcm4TlvDq8ikWAM" },
+  { key: "adam", name: "Adam", id: "pNInz6obpgDQGcFmaJgB" },
+  { key: "bella", name: "Bella", id: "EXAVITQu4vr4xnSDxMaL" },
+  { key: "antoni", name: "Antoni", id: "ErXwobaYiN019PkySvjV" },
+  { key: "elli", name: "Elli", id: "MF3mGyEYCl7XYWbV9V6O" },
+];
+const voiceId = (env, v) => v.id || env[v.env] || "";
+const READABLE = /^\/(|login|account|apply\/|contact\/|terms\/|privacy\/|pitch\/|track\/|learn\/|learn\/[a-z-]+\/)$/;
+const plain = (s) => s.replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ")
+  .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&(rsquo|lsquo|#8217|#8216|#39);/g, "'").replace(/&(rdquo|ldquo|quot|#8220|#8221);/g, '"')
+  .replace(/&(mdash|ndash|#8212|#8211);/g, "-").replace(/&[a-z#0-9]+;/gi, " ").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[—–]/g, "-")
+  .replace(/\s+/g, " ").trim().toLowerCase();
+
+function listVoices(env) {
+  if (!env.ELEVENLABS_KEY) return json({ voices: [] });
+  return json({ voices: VOICES.filter((v) => voiceId(env, v)).map(({ key, name }) => ({ key, name })) });
+}
+
+async function speak(request, env, url) {
+  if (!env.ELEVENLABS_KEY) return json({ error: "off", message: "Studio voices aren't set up." }, 503);
+  const b = await readJson(request);
+  const v = VOICES.find((x) => x.key === b.voice), id = v && voiceId(env, v);
+  const text = String(b.text || "").replace(/\s+/g, " ").trim();
+  const page = String(b.page || "");
+  if (!id || !text || text.length > 600 || !READABLE.test(page)) return json({ error: "invalid" }, 400);
+  const cacheKey = new Request(`https://staghunts.com/__voice/${v.key}/${await sha256(text)}`);
+  const hit = await caches.default.match(cacheKey);
+  if (hit) return hit;
+  // Only words that are on the public page (or its margin quotes) can be read.
+  const pages = await Promise.all([env.ASSETS.fetch(new URL(page, url.origin)), env.ASSETS.fetch(new URL("/quotes.js", url.origin))]);
+  const corpus = plain((await Promise.all(pages.map((r) => (r.ok ? r.text() : "")))).join(" "));
+  if (!corpus.replace(/\s/g, "").includes(plain(text).replace(/\s/g, ""))) return json({ error: "not_on_page" }, 403);   // spacing between tags varies, words don't
+  const ip = clientIp(request);
+  if (!(await allow(env, `voice:${ip}`, 80, 86400)) || !(await allow(env, "voice:all", 1500, 86400))) return json({ error: "rate_limited" }, 429);
+  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${id}?output_format=mp3_44100_96`, {
+    method: "POST", headers: { "xi-api-key": env.ELEVENLABS_KEY, "content-type": "application/json", accept: "audio/mpeg" },
+    body: JSON.stringify({ text, model_id: "eleven_turbo_v2_5" }),
+  });
+  if (!r.ok) return json({ error: "voice_failed" }, 502);
+  const res = new Response(await r.arrayBuffer(), { headers: { "content-type": "audio/mpeg", "cache-control": "public, max-age=2592000" } });
+  await caches.default.put(cacheKey, res.clone());
+  return res;
 }
