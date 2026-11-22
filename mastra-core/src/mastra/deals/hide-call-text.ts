@@ -1,12 +1,14 @@
 import type { AnySpan, SpanOutputProcessor } from "@mastra/core/observability";
 
-// Founder call and AI interview transcripts, and the drafts made from them, are private
-// member and founder data.
+// Founder call and AI interview transcripts, and the drafts and fills made from them, are
+// private member and founder data.
 const PRIVATE_ENTITIES = new Set([
   "draft-deal",
   "deal-drafter",
   "draft-application",
   "application-drafter",
+  "fill-deal",
+  "deal-filler",
 ]);
 const MAX_TRACKED_TRACES = 1000;
 

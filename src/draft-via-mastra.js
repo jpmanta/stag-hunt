@@ -13,6 +13,10 @@ export const draftDeal = (env, transcript, drafters, deps) =>
 export const draftApplication = (env, transcript, drafters, deps) =>
   draftViaMastra(env, transcript, { switchVar: "APPLY_VIA_MASTRA", workflow: "draftApplication", label: "apply draft", ...drafters }, deps);
 
+// The rest of a deal from a recorded call, including how the investor found it.
+export const fillDeal = (env, transcript, drafters, deps) =>
+  draftViaMastra(env, transcript, { switchVar: "FILL_VIA_MASTRA", workflow: "fillDeal", label: "rec fill", ...drafters }, deps);
+
 async function draftViaMastra(env, transcript, { switchVar, workflow, label, llama, clean }, { fetch = globalThis.fetch, log = console.log, timeoutMs = 30_000 } = {}) {
   if (env[switchVar] !== "on") return llama();
   const started = Date.now();

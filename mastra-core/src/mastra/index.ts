@@ -4,9 +4,11 @@ import { MastraPlatformExporter, Observability } from "@mastra/observability";
 import { KNOWLEDGE_ROUTES, MASTRA_KNOWLEDGE_PRINCIPALS_KEY } from "@mastra/server/server-adapter";
 
 import { applicationDrafter } from "./deals/application-drafter.ts";
+import { dealFiller } from "./deals/deal-filler.ts";
 import { draftApplication } from "./deals/draft-application.ts";
 import { draftDeal } from "./deals/draft-deal.ts";
 import { dealDrafter } from "./deals/drafter.ts";
+import { fillDeal } from "./deals/fill-deal.ts";
 import { HideCallText } from "./deals/hide-call-text.ts";
 import { env } from "./env.ts";
 import { knowledge, ORG, seedKnowledge } from "./knowledge.ts";
@@ -15,8 +17,8 @@ import { storage } from "./storage.ts";
 type Caller = { id: string };
 
 export const mastra = new Mastra({
-  agents: { dealDrafter, applicationDrafter },
-  workflows: { draftDeal, draftApplication },
+  agents: { dealDrafter, applicationDrafter, dealFiller },
+  workflows: { draftDeal, draftApplication, fillDeal },
   knowledge: { stagHunt: knowledge },
   storage,
 

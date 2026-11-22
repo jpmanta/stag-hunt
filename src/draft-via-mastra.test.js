@@ -1,6 +1,6 @@
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { draftApplication, draftDeal } from "./draft-via-mastra.js";
+import { draftApplication, draftDeal, fillDeal } from "./draft-via-mastra.js";
 
 // Invented conversations and drafts only.
 const FLOWS = [
@@ -22,11 +22,20 @@ const FLOWS = [
     transcript: "Interviewer: What's your name and what are you building?\nFounder: I'm Robin Testperson, and Pinecone Bakery Robots sells dough-folding arms to bakeries.\nInterviewer: Why you?\nFounder: I ran a bakery for ten years.",
     mastraDraft: { company: "Pinecone Bakery Robots", one_liner: "Dough-folding arms for bakeries.", founder_name: "Robin Testperson", why_you: "Ran a bakery for ten years." },
   },
+  {
+    name: "fill",
+    draft: fillDeal,
+    switchVar: "FILL_VIA_MASTRA",
+    workflow: "fillDeal",
+    label: "rec fill",
+    transcript: "Investor: We met at the Lakeside founders breakfast, right?\nFounder: Yes, and Pinecone Bakery Robots sells dough-folding arms to bakeries.\nInvestor: I also advise your co-founder's old company.",
+    mastraDraft: { how_found: "Met at the Lakeside founders breakfast.", disclosure: "Advises the co-founder's old company.", company: "Pinecone Bakery Robots", one_liner: "Dough-folding arms for bakeries." },
+  },
 ];
 const LLAMA_DRAFT = { company: "Llama Guess Co" };
 const TOKEN = "t0ken-for-tests-only-0123456789abcdef";
 const URL_ = "https://mastra.example.test";
-const FIELDS = { company: 80, one_liner: 10, founder_name: 80, why_you: 600 };
+const FIELDS = { company: 80, one_liner: 10, founder_name: 80, why_you: 600, how_found: 1000, disclosure: 600 };
 const clean = (f) => {
   const got = {};
   for (const [k, max] of Object.entries(FIELDS)) if (typeof f[k] === "string" && f[k].trim()) got[k] = f[k].trim().slice(0, max);
@@ -180,16 +189,24 @@ test("each flow listens only to its own switch", async () => {
   const deps = { fetch, log: () => {} };
   const base = { MASTRA_URL: URL_, MASTRA_SERVER_TOKEN: TOKEN };
 
-  // As shipped: deals on, applications off.
-  const shipped = { ...base, DRAFT_VIA_MASTRA: "on", APPLY_VIA_MASTRA: "off" };
-  assert.deepEqual(await draftApplication(shipped, FLOWS[1].transcript, { llama, clean }, deps), LLAMA_DRAFT);
+  // As shipped: deals and applications on, fills off.
+  const shipped = { ...base, DRAFT_VIA_MASTRA: "on", APPLY_VIA_MASTRA: "on", FILL_VIA_MASTRA: "off" };
+  assert.deepEqual(await fillDeal(shipped, FLOWS[2].transcript, { llama, clean }, deps), LLAMA_DRAFT);
   assert.equal(fetch.mock.callCount(), 0);
-  assert.deepEqual(await draftDeal(shipped, FLOWS[0].transcript, { llama, clean }, deps), { company: "Pinecone Bakery Robots" });
-  assert.equal(fetch.mock.calls.at(-1).arguments[0], URL_ + "/api/workflows/draftDeal/start-async");
 
-  const flipped = { ...base, DRAFT_VIA_MASTRA: "off", APPLY_VIA_MASTRA: "on" };
-  assert.deepEqual(await draftDeal(flipped, FLOWS[0].transcript, { llama, clean }, deps), LLAMA_DRAFT);
-  assert.equal(fetch.mock.callCount(), 1);
-  await draftApplication(flipped, FLOWS[1].transcript, { llama, clean }, deps);
-  assert.equal(fetch.mock.calls.at(-1).arguments[0], URL_ + "/api/workflows/draftApplication/start-async");
+  // Each switch on alone sends only its own flow to Mastra.
+  for (const on of FLOWS) {
+    const env = { ...base, ...Object.fromEntries(FLOWS.map((f) => [f.switchVar, f === on ? "on" : "off"])) };
+    for (const flow of FLOWS) {
+      const calls = fetch.mock.callCount();
+      const got = await flow.draft(env, flow.transcript, { llama, clean }, deps);
+      if (flow === on) {
+        assert.deepEqual(got, { company: "Pinecone Bakery Robots" });
+        assert.equal(fetch.mock.calls.at(-1).arguments[0], URL_ + "/api/workflows/" + flow.workflow + "/start-async");
+      } else {
+        assert.deepEqual(got, LLAMA_DRAFT);
+        assert.equal(fetch.mock.callCount(), calls);
+      }
+    }
+  }
 });

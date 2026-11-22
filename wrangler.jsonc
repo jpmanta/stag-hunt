@@ -50,7 +50,11 @@
     // "on" fills /apply applications from the AI interview with the Mastra application workflow (Anthropic via
     // Mastra Gateway), falling back to Workers AI. Same secrets as DRAFT_VIA_MASTRA. Before turning it on, update
     // the "AI pitch interviews" section of public/privacy/ to say interview transcripts go to Anthropic through Mastra.
-    "APPLY_VIA_MASTRA": "on"
+    "APPLY_VIA_MASTRA": "on",
+    // "on" fills the rest of a deal from a recorded call (including how the investor found it and any
+    // connection) with the Mastra fill workflow (Anthropic via Mastra Gateway), falling back to Workers AI.
+    // Same secrets as DRAFT_VIA_MASTRA.
+    "FILL_VIA_MASTRA": "off"
   },
   "routes": [
     { "pattern": "staghunts.com", "custom_domain": true },

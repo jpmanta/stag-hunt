@@ -77,23 +77,42 @@ export const APPLICATION_FIELDS = {
   heard_from: { max: 200, about: "How the founder heard about Stag Hunt." },
 } as const satisfies Fields;
 
+// What a recorded call can fill in beyond the first draft: the investor's own side
+// (how they found the company, any connection to it) plus the deal fields. Never scores.
+// Ported from the live site (src/index.js, FILL_FIELDS).
+export const FILL_FIELDS = {
+  how_found: {
+    max: 1000,
+    about:
+      "How the investor came to know this founder or company, if it comes up in the conversation (an introduction, a shared school or job, an event). Written from the investor's side, starting with a verb or 'Through'.",
+  },
+  disclosure: {
+    max: 600,
+    about:
+      "Any connection the investor mentions having to the company: friend of the founder, advisor, employee, existing investor. Empty if none is mentioned.",
+  },
+  ...DEAL_FIELDS,
+} as const satisfies Fields;
+
 export type Fields = Record<string, { max: number; about: string }>;
 export type DealField = keyof typeof DEAL_FIELDS;
 export type ApplicationField = keyof typeof APPLICATION_FIELDS;
+export type FillField = keyof typeof FILL_FIELDS;
 
 export const fieldNames = <F extends Fields>(fields: F) =>
   Object.keys(fields).filter((name): name is keyof F & string => Object.hasOwn(fields, name));
 
 export const DEAL_FIELD_NAMES = fieldNames(DEAL_FIELDS);
 export const APPLICATION_FIELD_NAMES = fieldNames(APPLICATION_FIELDS);
+export const FILL_FIELD_NAMES = fieldNames(FILL_FIELDS);
 
-const rules = (conversation: string, fields: Fields) =>
+const rules = (conversation: string, fields: Fields, extraRules: string[] = []) =>
   `You read the transcript of a conversation between ${conversation}. Fill in facts about the startup using only what was actually said, in plain words, staying close to the founder's own wording.
 Rules:
 - If something was not clearly said, return an empty string for it. Never guess or infer.
 - Never give opinions, judgments or ratings of the company, team or market.
 - Keep each answer to one or two short sentences.
-Fields:
+${extraRules.map((rule) => `${rule}\n`).join("")}Fields:
 ${Object.entries(fields)
   .map(([name, { about }]) => `- ${name}: ${about}`)
   .join("\n")}`;
@@ -103,3 +122,6 @@ export const APPLICATION_RULES = rules(
   "an AI interviewer and a startup founder applying for investment",
   APPLICATION_FIELDS,
 );
+export const FILL_RULES = rules("an investor and a startup founder", FILL_FIELDS, [
+  "- The investor is the person who recorded the call. For how_found and disclosure, use what either person said about how they know each other.",
+]);
