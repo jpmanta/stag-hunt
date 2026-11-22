@@ -1678,19 +1678,24 @@ async function cleanup(env) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM login_codes WHERE expires_at < ?").bind(t),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(t),
-    env.DB.prepare("DELETE FROM rate_limits WHERE window_start < ?").bind(t - 3600),
+    env.DB.prepare("DELETE FROM rate_limits WHERE expires_at < ?").bind(t),
+    // Recordings, their transcripts and pitch links last REC_KEEP_DAYS.
+    env.DB.prepare("DELETE FROM rec_segments WHERE rec_id IN (SELECT id FROM recordings WHERE created_at < ?)").bind(t - REC_KEEP_DAYS * 86400),
+    env.DB.prepare("DELETE FROM recordings WHERE created_at < ?").bind(t - REC_KEEP_DAYS * 86400),
   ]);
 }
 
+// Each key keeps its own window: the row expires when its window ends, so cleanup never resets a cap early.
 async function allow(env, key, limit, windowSecs) {
   const t = now();
   const row = await env.DB.prepare(
-    `INSERT INTO rate_limits (key, count, window_start) VALUES (?, 1, ?)
+    `INSERT INTO rate_limits (key, count, window_start, expires_at) VALUES (?1, 1, ?2, ?2 + ?3)
      ON CONFLICT(key) DO UPDATE SET
-       count = CASE WHEN rate_limits.window_start < ? THEN 1 ELSE rate_limits.count + 1 END,
-       window_start = CASE WHEN rate_limits.window_start < ? THEN ? ELSE rate_limits.window_start END
+       count = CASE WHEN rate_limits.window_start < ?2 - ?3 THEN 1 ELSE rate_limits.count + 1 END,
+       window_start = CASE WHEN rate_limits.window_start < ?2 - ?3 THEN ?2 ELSE rate_limits.window_start END,
+       expires_at = CASE WHEN rate_limits.window_start < ?2 - ?3 THEN ?2 ELSE rate_limits.window_start END + ?3
      RETURNING count`
-  ).bind(key, t, t - windowSecs, t - windowSecs, t).first();
+  ).bind(key, t, windowSecs).first();
   return row.count <= limit;
 }
 
@@ -1763,12 +1768,8 @@ async function startRecording(request, env, me) {
   if (!env.AI) throw new HttpError(503, "no_ai", "Recording isn't set up yet.");
   const b = await readJson(request);
   if (b.consent !== true) bad("Confirm the founder knows you're recording and agreed.");
-  const id = crypto.randomUUID(), t = now(), old = t - REC_KEEP_DAYS * 86400;
-  await env.DB.batch([
-    env.DB.prepare("DELETE FROM rec_segments WHERE rec_id IN (SELECT id FROM recordings WHERE created_at < ?)").bind(old),
-    env.DB.prepare("DELETE FROM recordings WHERE created_at < ?").bind(old),
-    env.DB.prepare("INSERT INTO recordings (id, member_id, consent_at, created_at) VALUES (?, ?, ?, ?)").bind(id, me.id, t, t),
-  ]);
+  const id = crypto.randomUUID(), t = now();
+  await env.DB.prepare("INSERT INTO recordings (id, member_id, consent_at, created_at) VALUES (?, ?, ?, ?)").bind(id, me.id, t, t).run();
   return json({ id });
 }
 async function addSegment(request, env, me, id, n) {
