@@ -2,7 +2,7 @@
 export { Hub } from "./hub.js";
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
-import { draftDeal } from "./draft-via-mastra.js";
+import { draftApplication, draftDeal } from "./draft-via-mastra.js";
 
 const RP_ID = "staghunts.com";
 const RP_ORIGIN = "https://staghunts.com";
@@ -2017,7 +2017,10 @@ async function finishInterview(request, env, id) {
     await env.DB.prepare("UPDATE interviews SET duration_secs = ?, cost_usd = ? WHERE id = ?").bind(secs, cost, id).run();
     bad("We didn't hear enough to fill in your application. You can try again, or use the form.");
   }
-  const fields = await extractFields(env, transcript, APPLY_FIELDS, APPLY_SYSTEM);
+  const fields = await draftApplication(env, transcript, {
+    llama: () => extractFields(env, transcript, APPLY_FIELDS, APPLY_SYSTEM),
+    clean: (f) => keepSaid(f, APPLY_FIELDS),
+  });
   await env.DB.prepare("UPDATE interviews SET transcript = ?, fields = ?, duration_secs = ?, cost_usd = ? WHERE id = ?")
     .bind(transcript.slice(0, REC_LIMIT), JSON.stringify(fields), secs, cost, id).run();
   return json({ fields });
