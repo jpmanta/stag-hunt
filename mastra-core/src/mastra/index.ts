@@ -5,6 +5,7 @@ import { KNOWLEDGE_ROUTES, MASTRA_KNOWLEDGE_PRINCIPALS_KEY } from "@mastra/serve
 
 import { draftDeal } from "./deals/draft-deal.ts";
 import { dealDrafter } from "./deals/drafter.ts";
+import { HideCallText } from "./deals/hide-call-text.ts";
 import { env } from "./env.ts";
 import { knowledge, ORG, seedKnowledge } from "./knowledge.ts";
 import { storage } from "./storage.ts";
@@ -23,6 +24,7 @@ export const mastra = new Mastra({
       default: {
         serviceName: "stag-hunt",
         exporters: [new MastraPlatformExporter()],
+        spanOutputProcessors: [new HideCallText()],
       },
     },
   }),
