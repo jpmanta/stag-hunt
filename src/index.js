@@ -2,7 +2,7 @@
 export { Hub } from "./hub.js";
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
-import { draftApplication, draftDeal } from "./draft-via-mastra.js";
+import { draftApplication, draftDeal, fillDeal } from "./draft-via-mastra.js";
 
 const RP_ID = "staghunts.com";
 const RP_ORIGIN = "https://staghunts.com";
@@ -1839,7 +1839,11 @@ async function draftFromRecording(env, me, id) {
 }
 async function fillFromRecording(env, me, id) {
   const transcript = await recTranscript(env, me, id);
-  return json({ fields: await extractFields(env, transcript, FILL_FIELDS, FILL_SYSTEM) });
+  const fields = await fillDeal(env, transcript, {
+    llama: () => extractFields(env, transcript, FILL_FIELDS, FILL_SYSTEM),
+    clean: (f) => keepSaid(f, FILL_FIELDS),
+  });
+  return json({ fields });
 }
 async function deleteRecording(env, me, id) {
   await env.DB.batch([

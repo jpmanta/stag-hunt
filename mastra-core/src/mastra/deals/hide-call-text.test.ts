@@ -9,10 +9,12 @@ import {
 import { Observability, TestExporter } from "@mastra/observability";
 
 import { applicationDrafter } from "./application-drafter.ts";
+import { dealFiller } from "./deal-filler.ts";
 import { draftApplication } from "./draft-application.ts";
 import { draftDeal } from "./draft-deal.ts";
 import { dealDrafter } from "./drafter.ts";
-import { APPLICATION_FIELD_NAMES, DEAL_FIELD_NAMES } from "./fields.ts";
+import { APPLICATION_FIELD_NAMES, DEAL_FIELD_NAMES, FILL_FIELD_NAMES } from "./fields.ts";
+import { fillDeal } from "./fill-deal.ts";
 import { HideCallText } from "./hide-call-text.ts";
 
 // Made-up markers: if either shows up in an exported event, founder text leaked.
@@ -36,6 +38,14 @@ const FLOWS = [
     fields: APPLICATION_FIELD_NAMES,
     markerField: "founder_name",
     transcript: `Interviewer: What are you building?\nFounder: ${CALL_MARKER} We sell solar kits to rural clinics.\nInterviewer: Any customers yet?\nFounder: Three paid pilots, with two more planned.`,
+  },
+  {
+    workflow: "fillDeal",
+    workflowId: "fill-deal",
+    agent: "dealFiller",
+    fields: FILL_FIELD_NAMES,
+    markerField: "how_found",
+    transcript: `Investor: We met through a friend from my old job.\nFounder: ${CALL_MARKER} Right, and we sell solar kits to rural clinics with three paid pilots.`,
   },
 ] as const;
 type Flow = (typeof FLOWS)[number];
@@ -73,8 +83,8 @@ const model = new MastraLanguageModelV2Mock({
 async function traced(processors: SpanOutputProcessor[], work: (mastra: Mastra) => Promise<void>) {
   const exporter = new TestExporter();
   const mastra = new Mastra({
-    agents: { dealDrafter, applicationDrafter },
-    workflows: { draftDeal, draftApplication },
+    agents: { dealDrafter, applicationDrafter, dealFiller },
+    workflows: { draftDeal, draftApplication, fillDeal },
     observability: new Observability({
       configs: {
         default: {
@@ -106,12 +116,16 @@ describe.each(FLOWS)("founder text in traces: $workflow", (flow) => {
     dealDrafter.__updateModel({ model });
     // oxlint-disable-next-line no-underscore-dangle
     applicationDrafter.__updateModel({ model });
+    // oxlint-disable-next-line no-underscore-dangle
+    dealFiller.__updateModel({ model });
   });
   afterAll(() => {
     // oxlint-disable-next-line no-underscore-dangle
     dealDrafter.__resetToOriginalModel();
     // oxlint-disable-next-line no-underscore-dangle
     applicationDrafter.__resetToOriginalModel();
+    // oxlint-disable-next-line no-underscore-dangle
+    dealFiller.__resetToOriginalModel();
   });
 
   test("leaks without the filter, so the checks below can catch a leak", async () => {
