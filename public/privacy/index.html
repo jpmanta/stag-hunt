@@ -47,7 +47,7 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
 <ul>
 <li><b>Members and observers</b> can see your profile, what you post, and your reputation. Observers can read but are hidden from the members list, apart from a line naming them.</li>
 <li><b>The public</b> sees none of it. Public pages never show members, companies, deal terms or results.</li>
-<li><b>Service providers.</b> The site runs on Cloudflare (hosting, database, email delivery, and the speech-to-text and AI models used for recorded calls). Founders' spoken interviews run on ElevenLabs (voice and conversation). If you choose Google sign-in, Google handles that step. They process data only to provide these services.</li>
+<li><b>Service providers.</b> The site runs on Cloudflare (hosting, database, email delivery, and the speech-to-text and AI models used for recorded calls). Deals from recorded calls are drafted with Anthropic's AI models through Mastra. Founders' spoken interviews run on ElevenLabs (voice and conversation). If you choose Google sign-in, Google handles that step. They process data only to provide these services.</li>
 <li>We may disclose information if the law requires it.</li>
 </ul>
 <p>We never sell your personal information.</p>
@@ -59,7 +59,7 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
 <li><b>Links are private and short-lived.</b> Only someone with the link can open it, and it stops working after 7 days, once the pitch is sent, or when the member removes it.</li>
 <li><b>Audio is never saved.</b> Each minute of sound is sent to Cloudflare's speech-to-text service, turned into text, and discarded.</li>
 <li><b>The transcript is private.</b> Only the member who recorded it, or who sent the link, can see it. It's deleted when they post the deal, when they discard the draft, or after 7 days, whichever comes first.</li>
-<li><b>AI drafts, a person checks.</b> An AI model on Cloudflare drafts the deal's answers from the transcript. It never scores deals. The member checks every answer before posting, and the deal says it was drafted from a recorded call.</li>
+<li><b>AI drafts, a person checks.</b> Founder call transcripts are sent to Anthropic, through Mastra, to draft the deal, and are not used to train AI models. If that service is unavailable, an AI model on Cloudflare drafts the deal's answers from the transcript instead. It never scores deals. The member checks every answer before posting, and the deal says it was drafted from a recorded call.</li>
 <li>Recordings and transcripts are never used to train AI models or shared outside the service.</li>
 </ul>
 
