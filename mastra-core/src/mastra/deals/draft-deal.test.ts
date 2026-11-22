@@ -1,26 +1,30 @@
 import { describe, expect, it } from "bun:test";
 
-import { cleanDraft, draftDeal } from "./draft-deal.ts";
+import { draftDeal } from "./draft-deal.ts";
+import { cleanAnswers } from "./draft-workflow.ts";
+import { DEAL_FIELDS } from "./fields.ts";
 
-describe("cleanDraft", () => {
+describe("cleanAnswers", () => {
   it("keeps what was said and trims it", () => {
-    expect(cleanDraft({ company: "  Acme Grid  ", sector: "climate" })).toEqual({
+    expect(cleanAnswers({ company: "  Acme Grid  ", sector: "climate" }, DEAL_FIELDS)).toEqual({
       company: "Acme Grid",
       sector: "climate",
     });
   });
 
   it("drops empty and not-said answers", () => {
-    expect(cleanDraft({ company: "", traction: "n/a", blocker: "Not mentioned." })).toEqual({});
+    expect(
+      cleanAnswers({ company: "", traction: "n/a", blocker: "Not mentioned." }, DEAL_FIELDS),
+    ).toEqual({});
   });
 
   it("keeps only known round types", () => {
-    expect(cleanDraft({ round_type: "SAFE" })).toEqual({ round_type: "SAFE" });
-    expect(cleanDraft({ round_type: "Series Z" })).toEqual({});
+    expect(cleanAnswers({ round_type: "SAFE" }, DEAL_FIELDS)).toEqual({ round_type: "SAFE" });
+    expect(cleanAnswers({ round_type: "Series Z" }, DEAL_FIELDS)).toEqual({});
   });
 
   it("cuts each answer to its longest length", () => {
-    expect(cleanDraft({ company: "x".repeat(200) }).company).toHaveLength(80);
+    expect(cleanAnswers({ company: "x".repeat(200) }, DEAL_FIELDS).company).toHaveLength(80);
   });
 });
 

@@ -1,5 +1,5 @@
-// What a founder call can tell members about a startup, and the longest answer kept for each.
-// One source for the drafter's instructions, the cleanup step and the Knowledge page.
+// What founder conversations can tell us about a startup, and the longest answer kept for each.
+// One source for the drafters' instructions, the cleanup step and the Knowledge page.
 // Ported from the live site (staghunts-site/src/index.js, DRAFT_FIELDS).
 
 export const ROUND_TYPES = ["SAFE", "Convertible note", "Priced round", "Reg CF", "Other"] as const;
@@ -59,18 +59,47 @@ export const DEAL_FIELDS = {
   discount: { max: 80, about: "The discount, e.g. 20%." },
   min_check: { max: 80, about: "The smallest check they take." },
   deadline: { max: 40, about: "When the round closes." },
-} as const satisfies Record<string, { max: number; about: string }>;
+} as const satisfies Fields;
 
+const { discount: _discount, ...DEAL_FIELDS_BUT_DISCOUNT } = DEAL_FIELDS;
+
+// What a founder's AI interview can tell us for their application: the deal fields
+// (without the discount) plus who the founder is and how they found us.
+// Ported from the live site (src/index.js, APPLY_FIELDS).
+export const APPLICATION_FIELDS = {
+  founder_name: { max: 80, about: "The founder's full name." },
+  why_you: {
+    max: 600,
+    about:
+      "Why the founder is the one to build this: what they've lived, built or know, in their words.",
+  },
+  ...DEAL_FIELDS_BUT_DISCOUNT,
+  heard_from: { max: 200, about: "How the founder heard about Stag Hunt." },
+} as const satisfies Fields;
+
+export type Fields = Record<string, { max: number; about: string }>;
 export type DealField = keyof typeof DEAL_FIELDS;
+export type ApplicationField = keyof typeof APPLICATION_FIELDS;
 
-const isDealField = (name: string): name is DealField => Object.hasOwn(DEAL_FIELDS, name);
+export const fieldNames = <F extends Fields>(fields: F) =>
+  Object.keys(fields).filter((name): name is keyof F & string => Object.hasOwn(fields, name));
 
-export const DEAL_FIELD_NAMES = Object.keys(DEAL_FIELDS).filter(isDealField);
+export const DEAL_FIELD_NAMES = fieldNames(DEAL_FIELDS);
+export const APPLICATION_FIELD_NAMES = fieldNames(APPLICATION_FIELDS);
 
-export const DRAFTING_RULES = `You read the transcript of a conversation between an investor and a startup founder. Fill in facts about the startup using only what was actually said, in plain words, staying close to the founder's own wording.
+const rules = (conversation: string, fields: Fields) =>
+  `You read the transcript of a conversation between ${conversation}. Fill in facts about the startup using only what was actually said, in plain words, staying close to the founder's own wording.
 Rules:
 - If something was not clearly said, return an empty string for it. Never guess or infer.
 - Never give opinions, judgments or ratings of the company, team or market.
 - Keep each answer to one or two short sentences.
 Fields:
-${DEAL_FIELD_NAMES.map((name) => `- ${name}: ${DEAL_FIELDS[name].about}`).join("\n")}`;
+${Object.entries(fields)
+  .map(([name, { about }]) => `- ${name}: ${about}`)
+  .join("\n")}`;
+
+export const DRAFTING_RULES = rules("an investor and a startup founder", DEAL_FIELDS);
+export const APPLICATION_RULES = rules(
+  "an AI interviewer and a startup founder applying for investment",
+  APPLICATION_FIELDS,
+);
