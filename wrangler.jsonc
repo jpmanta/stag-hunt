@@ -46,7 +46,11 @@
     "REVIEW_EMAIL": "review@staghunts.com",
     // "on" drafts deals from recorded calls with the Mastra deal workflow (Anthropic via Mastra Gateway),
     // falling back to Workers AI. Needs the secrets MASTRA_URL and MASTRA_SERVER_TOKEN (for wrangler dev, in .dev.vars).
-    "DRAFT_VIA_MASTRA": "on"
+    "DRAFT_VIA_MASTRA": "on",
+    // "on" fills /apply applications from the AI interview with the Mastra application workflow (Anthropic via
+    // Mastra Gateway), falling back to Workers AI. Same secrets as DRAFT_VIA_MASTRA. Before turning it on, update
+    // the "AI pitch interviews" section of public/privacy/ to say interview transcripts go to Anthropic through Mastra.
+    "APPLY_VIA_MASTRA": "off"
   },
   "routes": [
     { "pattern": "staghunts.com", "custom_domain": true },
