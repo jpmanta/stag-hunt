@@ -1,11 +1,17 @@
 import type { AnySpan, SpanOutputProcessor } from "@mastra/core/observability";
 
-// Founder call transcripts and the drafts made from them are private member data.
-const PRIVATE_ENTITIES = new Set(["draft-deal", "deal-drafter"]);
+// Founder call and AI interview transcripts, and the drafts made from them, are private
+// member and founder data.
+const PRIVATE_ENTITIES = new Set([
+  "draft-deal",
+  "deal-drafter",
+  "draft-application",
+  "application-drafter",
+]);
 const MAX_TRACKED_TRACES = 1000;
 
-// Clears span input, output and error details in every trace that touches the deal
-// drafter, before any exporter sees them. Timing, status and token usage stay.
+// Clears span input, output and error details in every trace that touches a drafter,
+// before any exporter sees them. Timing, status and token usage stay.
 export class HideCallText implements SpanOutputProcessor {
   name = "hide-call-text";
   #traces = new Set<string>();

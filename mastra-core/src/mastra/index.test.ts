@@ -13,6 +13,11 @@ describe("mastra", () => {
     expect(mastra.getWorkflow("draftDeal").id).toBe("draft-deal");
   });
 
+  it("registers the application drafter and its workflow", () => {
+    expect(mastra.getAgent("applicationDrafter").id).toBe("application-drafter");
+    expect(mastra.getWorkflow("draftApplication").id).toBe("draft-application");
+  });
+
   it("seeds the public rules into Knowledge, twice without changes", async () => {
     const first = await seedKnowledge();
     expect(first.find((r) => r.page.key === "principles")?.page.body).toContain("I16");
