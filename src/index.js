@@ -2,6 +2,7 @@
 export { Hub } from "./hub.js";
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
+import { draftDeal } from "./draft-via-mastra.js";
 
 const RP_ID = "staghunts.com";
 const RP_ORIGIN = "https://staghunts.com";
@@ -1816,6 +1817,9 @@ async function extractFields(env, transcript, fields, system) {
   });
   let f = out?.response;
   if (typeof f === "string") { try { f = JSON.parse(f); } catch { f = {}; } }
+  return keepSaid(f, fields);
+}
+function keepSaid(f, fields) {
   const got = {};
   for (const [k, [max]] of Object.entries(fields)) {
     const v = typeof f?.[k] === "string" ? f[k].trim() : "";
@@ -1827,7 +1831,10 @@ async function extractFields(env, transcript, fields, system) {
 }
 async function draftFromRecording(env, me, id) {
   const transcript = await recTranscript(env, me, id);
-  const draft = await extractFields(env, transcript, DRAFT_FIELDS, DRAFT_SYSTEM);
+  const draft = await draftDeal(env, transcript, {
+    llama: () => extractFields(env, transcript, DRAFT_FIELDS, DRAFT_SYSTEM),
+    clean: (f) => keepSaid(f, DRAFT_FIELDS),
+  });
   return json({ draft, transcript, truncated: transcript.length > REC_LIMIT });
 }
 async function fillFromRecording(env, me, id) {
