@@ -54,7 +54,7 @@
     // "on" fills the rest of a deal from a recorded call (including how the investor found it and any
     // connection) with the Mastra fill workflow (Anthropic via Mastra Gateway), falling back to Workers AI.
     // Same secrets as DRAFT_VIA_MASTRA.
-    "FILL_VIA_MASTRA": "off"
+    "FILL_VIA_MASTRA": "on"
   },
   "routes": [
     { "pattern": "staghunts.com", "custom_domain": true },
