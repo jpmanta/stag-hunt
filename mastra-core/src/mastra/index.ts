@@ -1,19 +1,21 @@
 import { Mastra } from "@mastra/core/mastra";
 import { registerApiRoute, SimpleAuth } from "@mastra/core/server";
 import { MastraPlatformExporter, Observability } from "@mastra/observability";
-import { PostgresStore } from "@mastra/pg";
+import { KNOWLEDGE_ROUTES, MASTRA_KNOWLEDGE_PRINCIPALS_KEY } from "@mastra/server/server-adapter";
 
+import { draftDeal } from "./deals/draft-deal.ts";
+import { dealDrafter } from "./deals/drafter.ts";
 import { env } from "./env.ts";
+import { knowledge, ORG, seedKnowledge } from "./knowledge.ts";
+import { storage } from "./storage.ts";
 
 type Caller = { id: string };
 
 export const mastra = new Mastra({
-  // Mastra keeps its own tables in the "mastra" schema, apart from Stag Hunt's.
-  storage: new PostgresStore({
-    id: "stag-hunt",
-    connectionString: env.DATABASE_URL,
-    schemaName: "mastra",
-  }),
+  agents: { dealDrafter },
+  workflows: { draftDeal },
+  knowledge: { stagHunt: knowledge },
+  storage,
 
   // Traces go to the Mastra platform only when it supplies an access token.
   observability: new Observability({
@@ -31,7 +33,18 @@ export const mastra = new Mastra({
     auth: new SimpleAuth<Caller>({
       tokens: { [env.MASTRA_SERVER_TOKEN]: { id: "stag-hunt-site" } },
     }),
+    middleware: [
+      {
+        // Knowledge holds only public rules, so every signed-in caller may read them.
+        path: "/api/knowledge/*",
+        handler: async (c, next) => {
+          c.get("requestContext").set(MASTRA_KNOWLEDGE_PRINCIPALS_KEY, [ORG]);
+          await next();
+        },
+      },
+    ],
     apiRoutes: [
+      ...KNOWLEDGE_ROUTES,
       registerApiRoute("/health", {
         method: "GET",
         requiresAuth: false,
@@ -40,3 +53,9 @@ export const mastra = new Mastra({
     ],
   },
 });
+
+if (process.env.NODE_ENV !== "test") {
+  seedKnowledge().catch((error: unknown) => {
+    mastra.getLogger().error("Could not seed Knowledge", { error });
+  });
+}
