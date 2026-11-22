@@ -73,6 +73,13 @@ test("Mastra path: posts the transcript, cleans the draft, skips Llama", async (
   s.noPrivateText();
 });
 
+test("MASTRA_URL keeps its path and loses a trailing slash", async () => {
+  const s = setup(reply(200, { status: "success", result: MASTRA_DRAFT }));
+  await draftDeal({ ...ON, MASTRA_URL: URL_ + "/core/" }, TRANSCRIPT, { llama: s.llama, clean }, s.deps);
+  assert.equal(s.fetch.mock.calls[0].arguments[0], URL_ + "/core/api/workflows/draftDeal/start-async");
+  s.noPrivateText();
+});
+
 const timeoutErr = () => Object.assign(new Error("timed out reading " + TRANSCRIPT), { name: "TimeoutError" });
 const fallbacks = [
   ["fetch times out", async () => { throw timeoutErr(); }, "timeout"],
@@ -127,5 +134,7 @@ test("a Llama error after a Mastra failure is thrown, as today", async () => {
   const s = setup(reply(503, {}));
   s.llama.mock.mockImplementation(async () => { throw new Error("ai down"); });
   await assert.rejects(draftDeal(ON, TRANSCRIPT, { llama: s.llama, clean }, s.deps), /ai down/);
+  assert.equal(s.logs[0][1].path, "llama");
+  assert.equal(s.logs[0][1].reason, "http_503");
   s.noPrivateText();
 });

@@ -15,16 +15,18 @@ export async function draftDeal(env, transcript, { llama, clean }, { fetch = glo
     return reason;
   }
   const t = Date.now();
-  const draft = await llama();
-  log("rec draft", { path: "llama", ms: Date.now() - t, reason, mastra_ms: mastraMs });
-  return draft;
+  try {
+    return await llama();
+  } finally {
+    log("rec draft", { path: "llama", ms: Date.now() - t, reason, mastra_ms: mastraMs });
+  }
 }
 
 // Returns the cleaned draft, or a short reason string when Llama should take over.
 async function viaMastra(env, transcript, clean, fetch, timeoutMs) {
   if (!env.MASTRA_URL || !env.MASTRA_SERVER_TOKEN) return "not_configured";
   try {
-    const res = await fetch(new URL("/api/workflows/draftDeal/start-async", env.MASTRA_URL), {
+    const res = await fetch(env.MASTRA_URL.replace(/\/+$/, "") + "/api/workflows/draftDeal/start-async", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + env.MASTRA_SERVER_TOKEN },
       body: JSON.stringify({ inputData: { transcript } }),
