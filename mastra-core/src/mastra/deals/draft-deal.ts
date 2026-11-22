@@ -56,6 +56,9 @@ export const draftDeal = createWorkflow({
   description: "Turns the transcript of a founder call into a draft deal for the member to check.",
   inputSchema: z.object({ transcript: z.string() }),
   outputSchema: dealDraft,
+  // Call transcripts and drafts are private member data: never store a run snapshot,
+  // whether the run succeeds or fails. The caller gets the draft back from the run itself.
+  options: { shouldPersistSnapshot: () => false },
 })
   .then(readTranscript)
   .then(draft)
