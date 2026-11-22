@@ -1,0 +1,6 @@
+{
+  "printWidth": 100,
+  "sortImports": {},
+  "sortPackageJson": true,
+  "ignorePatterns": [".mastra", "bun.lock"]
+}

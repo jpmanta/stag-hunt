@@ -1,0 +1,31 @@
+{
+  "name": "stag-hunt-core",
+  "private": true,
+  "description": "Stag Hunt's core on the Mastra platform: agents and workflows.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "mastra dev",
+    "build": "mastra build",
+    "start": "mastra start",
+    "deploy": "mastra deploy --env production --env-file .env.production --workers in-process --yes",
+    "test": "bun test",
+    "check": "tsc --noEmit && oxlint --type-aware && oxfmt --check",
+    "lint": "oxlint --type-aware",
+    "format": "oxfmt"
+  },
+  "dependencies": {
+    "@mastra/core": "^1.85.0",
+    "@mastra/observability": "^1.24.2",
+    "@mastra/pg": "^1.37.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.5",
+    "mastra": "^1.40.1",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
+    "oxlint-tsgolint": "^7.0.2008",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+.mastra/
+coverage/
+
+# Secrets and local settings: never commit
+.env
+.env.*
+
+# Links this folder to a private platform project id
+.mastra-project.json
