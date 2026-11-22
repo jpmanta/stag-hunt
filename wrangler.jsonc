@@ -43,7 +43,10 @@
     "ANDROID_PACKAGE": "com.staghunts.app",
     "ANDROID_CERT_SHA256": "A4:22:62:36:70:67:BD:DE:CF:F3:8F:EC:F9:E1:34:5D:C6:BA:1D:44:19:EC:DF:31:C6:2B:50:8A:29:CB:EA:F8",
     // Apple's app reviewer signs in here (read-only observer) with the fixed code in the secret REVIEW_CODE.
-    "REVIEW_EMAIL": "review@staghunts.com"
+    "REVIEW_EMAIL": "review@staghunts.com",
+    // "on" drafts deals from recorded calls with the Mastra deal workflow (Anthropic via Mastra Gateway),
+    // falling back to Workers AI. Needs the secrets MASTRA_URL and MASTRA_SERVER_TOKEN (for wrangler dev, in .dev.vars).
+    "DRAFT_VIA_MASTRA": "off"
   },
   "routes": [
     { "pattern": "staghunts.com", "custom_domain": true },
