@@ -8,6 +8,7 @@ import {
 } from "@mastra/core/test-utils/llm-mock";
 import { Observability, TestExporter } from "@mastra/observability";
 
+import { answerCheck, answerChecker, checksSettled } from "./answer-check.ts";
 import { applicationDrafter } from "./application-drafter.ts";
 import { dealFiller } from "./deal-filler.ts";
 import { draftApplication } from "./draft-application.ts";
@@ -58,6 +59,7 @@ const goodAnswer = (flow: Flow) =>
   );
 const badAnswer = (flow: Flow) => JSON.stringify({ [flow.markerField]: DRAFT_MARKER });
 let answer = "";
+let checkerAnswer = "";
 
 const usage = { inputTokens: 10, outputTokens: 5, totalTokens: 15 };
 const model = new MastraLanguageModelV2Mock({
@@ -80,11 +82,22 @@ const model = new MastraLanguageModelV2Mock({
   }),
 });
 
+// The answer checker flags the marker field, so its reply names a field but holds no founder text.
+const checkerModel = new MastraLanguageModelV2Mock({
+  doGenerate: async () => ({
+    content: [{ type: "text", text: checkerAnswer }],
+    finishReason: "stop",
+    usage,
+    warnings: [],
+  }),
+});
+
 async function traced(processors: SpanOutputProcessor[], work: (mastra: Mastra) => Promise<void>) {
   const exporter = new TestExporter();
   const mastra = new Mastra({
-    agents: { dealDrafter, applicationDrafter, dealFiller },
+    agents: { dealDrafter, applicationDrafter, dealFiller, answerChecker },
     workflows: { draftDeal, draftApplication, fillDeal },
+    scorers: { answerCheck },
     observability: new Observability({
       configs: {
         default: {
@@ -97,8 +110,13 @@ async function traced(processors: SpanOutputProcessor[], work: (mastra: Mastra) 
   });
   try {
     await work(mastra);
+    await checksSettled();
     await mastra.observability.getDefaultInstance()?.flush();
-    return { exported: JSON.stringify(exporter.events), spans: exporter.getCompletedSpans() };
+    return {
+      exported: JSON.stringify([exporter.events, exporter.getScoreEvents()]),
+      spans: exporter.getCompletedSpans(),
+      scores: exporter.getAllScores(),
+    };
   } finally {
     await mastra.shutdown();
   }
@@ -118,6 +136,9 @@ describe.each(FLOWS)("founder text in traces: $workflow", (flow) => {
     applicationDrafter.__updateModel({ model });
     // oxlint-disable-next-line no-underscore-dangle
     dealFiller.__updateModel({ model });
+    // oxlint-disable-next-line no-underscore-dangle
+    answerChecker.__updateModel({ model: checkerModel });
+    checkerAnswer = JSON.stringify({ flagged: [flow.markerField] });
   });
   afterAll(() => {
     // oxlint-disable-next-line no-underscore-dangle
@@ -126,6 +147,8 @@ describe.each(FLOWS)("founder text in traces: $workflow", (flow) => {
     applicationDrafter.__resetToOriginalModel();
     // oxlint-disable-next-line no-underscore-dangle
     dealFiller.__resetToOriginalModel();
+    // oxlint-disable-next-line no-underscore-dangle
+    answerChecker.__resetToOriginalModel();
   });
 
   test("leaks without the filter, so the checks below can catch a leak", async () => {
@@ -140,7 +163,7 @@ describe.each(FLOWS)("founder text in traces: $workflow", (flow) => {
   test("a run exports no transcript or draft text, but keeps timing and usage", async () => {
     answer = goodAnswer(flow);
     let status = "";
-    const { exported, spans } = await traced([new HideCallText()], async (mastra) => {
+    const { exported, spans, scores } = await traced([new HideCallText()], async (mastra) => {
       const result = await runDraft(mastra, flow);
       status = result.status;
       if (result.status === "success") {
@@ -156,6 +179,12 @@ describe.each(FLOWS)("founder text in traces: $workflow", (flow) => {
     expect(run?.endTime).toBeDefined();
     const generation = spans.find((span) => span.type === SpanType.MODEL_GENERATION);
     expect(generation?.attributes).toMatchObject({ usage: { inputTokens: 10, outputTokens: 5 } });
+    // The answer check ran, its own spans and model call included, and kept only field names.
+    expect(spans.some((span) => span.type === SpanType.SCORER_RUN)).toBe(true);
+    expect(spans.some((span) => span.entityId === "answer-checker")).toBe(true);
+    expect(scores).toMatchObject([
+      { scorerId: "answer-check", score: 0, metadata: { flaggedFields: [flow.markerField] } },
+    ]);
   });
 
   test("calling the agent directly exports no transcript or draft text", async () => {

@@ -7,6 +7,7 @@ import {
 
 import { mastra } from "../index.ts";
 import { storage } from "../storage.ts";
+import { answerChecker, checksSettled } from "./answer-check.ts";
 import { applicationDrafter } from "./application-drafter.ts";
 import { dealFiller } from "./deal-filler.ts";
 import { dealDrafter } from "./drafter.ts";
@@ -69,6 +70,21 @@ const model = new MastraLanguageModelV2Mock({
   }),
 });
 
+// The answer checker flags the marker field: its reply names a field but holds no founder text.
+let checks = 0;
+let checkerAnswer = "";
+const checkerModel = new MastraLanguageModelV2Mock({
+  doGenerate: async () => {
+    checks += 1;
+    return {
+      content: [{ type: "text", text: checkerAnswer }],
+      finishReason: "stop",
+      usage,
+      warnings: [],
+    };
+  },
+});
+
 // Names every table in the Mastra schema that holds either marker anywhere in a row.
 async function storedCallText() {
   const tables = await storage.db.any<{ table_name: string }>(
@@ -89,6 +105,7 @@ async function storedCallText() {
 async function runDraft(flow: Flow) {
   const run = await mastra.getWorkflow(flow.workflow).createRun();
   const result = await run.start({ inputData: { transcript: flow.transcript } });
+  await checksSettled();
   return { runId: run.runId, result };
 }
 
@@ -101,6 +118,9 @@ describe.each(FLOWS)("founder text in storage: $workflow", (flow) => {
     applicationDrafter.__updateModel({ model });
     // oxlint-disable-next-line no-underscore-dangle
     dealFiller.__updateModel({ model });
+    // oxlint-disable-next-line no-underscore-dangle
+    answerChecker.__updateModel({ model: checkerModel });
+    checkerAnswer = JSON.stringify({ flagged: [flow.markerField] });
   });
   afterAll(() => {
     // oxlint-disable-next-line no-underscore-dangle
@@ -109,11 +129,16 @@ describe.each(FLOWS)("founder text in storage: $workflow", (flow) => {
     applicationDrafter.__resetToOriginalModel();
     // oxlint-disable-next-line no-underscore-dangle
     dealFiller.__resetToOriginalModel();
+    // oxlint-disable-next-line no-underscore-dangle
+    answerChecker.__resetToOriginalModel();
   });
 
   test("a finished draft is returned but leaves no founder text in storage", async () => {
     answer = goodAnswer(flow);
+    const before = checks;
     const { runId, result } = await runDraft(flow);
+    // The answer check ran on the draft, so its model call and score are covered below too.
+    expect(checks).toBe(before + 1);
     expect(result.status).toBe("success");
     if (result.status === "success") {
       expect(result.result).toMatchObject({ [flow.markerField]: DRAFT_MARKER });

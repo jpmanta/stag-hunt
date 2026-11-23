@@ -2,6 +2,7 @@ import type { Agent } from "@mastra/core/agent";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 
+import { checkAnswers } from "./answer-check.ts";
 import { fieldNames, ROUND_TYPES, type Fields } from "./fields.ts";
 
 const MIN_TRANSCRIPT = 80;
@@ -68,7 +69,20 @@ export function draftWorkflow(spec: {
         description: "Drops empty or made-up answers and trims each to its length.",
         inputSchema: modelAnswers,
         outputSchema: draft,
-        execute: async ({ inputData }) => cleanAnswers(inputData, spec.fields),
+        execute: async (context) => {
+          const { inputData, mastra, tracingContext } = context;
+          const answers = cleanAnswers(inputData, spec.fields);
+          // Checked in the background: the draft goes back now, whatever the check does.
+          void checkAnswers({
+            mastra,
+            workflowId: spec.id,
+            agentId: spec.agent.id,
+            transcript: context.getStepResult(readTranscript).prompt,
+            answers,
+            traceId: tracingContext?.currentSpan?.traceId,
+          });
+          return answers;
+        },
       }),
     )
     .commit();

@@ -23,6 +23,11 @@ describe("mastra", () => {
     expect(mastra.getWorkflow("fillDeal").id).toBe("fill-deal");
   });
 
+  it("registers the answer check and its checker", () => {
+    expect(mastra.getAgent("answerChecker").id).toBe("answer-checker");
+    expect(mastra.getScorer("answerCheck").id).toBe("answer-check");
+  });
+
   it("seeds the public rules into Knowledge, twice without changes", async () => {
     const first = await seedKnowledge();
     expect(first.find((r) => r.page.key === "principles")?.page.body).toContain("I16");

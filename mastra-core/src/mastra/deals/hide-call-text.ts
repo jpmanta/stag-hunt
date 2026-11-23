@@ -9,6 +9,8 @@ const PRIVATE_ENTITIES = new Set([
   "application-drafter",
   "fill-deal",
   "deal-filler",
+  "answer-check",
+  "answer-checker",
 ]);
 const MAX_TRACKED_TRACES = 1000;
 
