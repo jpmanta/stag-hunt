@@ -3,6 +3,7 @@ import { registerApiRoute, SimpleAuth } from "@mastra/core/server";
 import { MastraPlatformExporter, Observability } from "@mastra/observability";
 import { KNOWLEDGE_ROUTES, MASTRA_KNOWLEDGE_PRINCIPALS_KEY } from "@mastra/server/server-adapter";
 
+import { answerCheck, answerChecker } from "./deals/answer-check.ts";
 import { applicationDrafter } from "./deals/application-drafter.ts";
 import { dealFiller } from "./deals/deal-filler.ts";
 import { draftApplication } from "./deals/draft-application.ts";
@@ -17,8 +18,9 @@ import { storage } from "./storage.ts";
 type Caller = { id: string };
 
 export const mastra = new Mastra({
-  agents: { dealDrafter, applicationDrafter, dealFiller },
+  agents: { dealDrafter, applicationDrafter, dealFiller, answerChecker },
   workflows: { draftDeal, draftApplication, fillDeal },
+  scorers: { answerCheck },
   knowledge: { stagHunt: knowledge },
   storage,
 
