@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><script>/* Scale the whole page to the screen, like a phone does: bigger monitors get a proportionally bigger layout. */
+(function(){var r=document.documentElement,land=location.pathname==="/";function fit(){var w=innerWidth,h=innerHeight,z=1;
+if(w>920){z=w/1440;if(land)z=Math.min(z,h/900);z=Math.max(.8,Math.min(2,z));}
+r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addEventListener("resize",fit);})();</script><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 fill=%22%23FAF9F6%22 stroke=%22%2314244A%22 stroke-width=%221.6%22/%3E%3Crect x=%222%22 y=%222%22 width=%2210%22 height=%2210%22 fill=%22%2314244A%22/%3E%3Crect x=%2212%22 y=%2212%22 width=%2210%22 height=%2210%22 fill=%22%2314244A%22/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta name="theme-color" content="#FAF9F6"><meta name="apple-mobile-web-app-title" content="Stag Hunt"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>How it works · Stag Hunt</title>
+<meta property="og:type" content="website"><meta property="og:site_name" content="Stag Hunt"><meta property="og:title" content="How it works · Stag Hunt"><meta property="og:description" content="How to use Stag Hunt, step by step. Investors join free, share the deals they want to back, say yes or no alone and invest directly. Founders apply once and reach every investor whose check fits."><meta property="og:url" content="https://staghunts.com/learn/how-it-works/"><meta property="og:image" content="https://staghunts.com/og.png?v=2"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="The Stag Hunt: Alone, we catch hares. Together, we catch the stag."><meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="How to use Stag Hunt, step by step. Investors join free, share the deals they want to back, say yes or no alone and invest directly. Founders apply once and reach every investor whose check fits.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css?v=1797700200"><link rel="stylesheet" href="/a11y.css?v=1797800006"><script src="/a11y.js?v=1797800005"></script>
+<link rel="stylesheet" href="/home.css?v=1797500000">
+<style>
+/* How it works: styles for this page only. Everything is scoped to #hw, and every color is one of the
+   site's variables, so Reading help (dark, high contrast, larger text, other fonts) works here too. */
+#hw{text-align:left;margin-top:6px}
+/* The site's menu bar stays stuck to the top for the first screen of scrolling. On phones and tablets it is tall, so on this page it scrolls away
+   with the page instead of covering the steps. On a computer it stays as on every other page, and the jump targets below leave room for it. */
+@media(max-width:920px){.home.learnpage header{position:static}}
+#hw p{width:auto;max-width:none;margin-left:0!important;margin-right:0!important;color:var(--fg)}
+#hw .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#hw button{appearance:none;-webkit-appearance:none;font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+#hw :is(button,a,summary,[tabindex]):focus-visible{outline:2px solid var(--forest);outline-offset:3px}
+
+/* ---- the opening lines and the two doors ---- */
+#hw .hw-sub{font:italic 400 26px/1.3 var(--serif)!important;color:var(--muted);text-align:center!important;margin:0 0 14px!important;text-wrap:balance}
+#hw .hw-lead{text-align:center!important;margin:0!important}
+#hw .hw-doors{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;margin:30px auto 0}
+#hw .hw-door{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:104px;padding:22px 16px 20px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-align:center;transition:background .25s,color .25s,border-color .25s}
+#hw .hw-door::before{content:"";position:absolute;top:-1px;left:50%;width:44px;height:2px;margin-left:-22px;background:var(--gilt);transition:width .25s,margin .25s}
+#hw .hw-door .k{font:500 10.5px/1 var(--sans);letter-spacing:.24em;text-transform:uppercase;color:var(--oak-dark);transition:color .25s}
+#hw .hw-door .t{font:400 19px/1.3 var(--serif);text-wrap:balance}
+#hw .hw-door:hover{border-color:var(--fg)}
+#hw .hw-door[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+#hw .hw-door[aria-pressed=true]::before{width:100%;margin-left:-50%}
+#hw .hw-door[aria-pressed=true] .k{color:var(--gilt)}
+#hw .hw-nojs{text-align:center!important;margin-top:22px!important}
+#hw.js .hw-nojs{display:none}
+
+/* ---- the pieces: the same discs as the board on the homepage ---- */
+#hw .pc{--d:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;width:var(--d);height:var(--d);border-radius:50%;border:1.6px solid var(--forest);background:var(--panel);color:var(--forest);position:relative;font:600 13.5px/1 var(--sans);box-shadow:0 3px 3px -2px rgba(20,36,74,.2)}
+#hw .pc::after{content:"";position:absolute;inset:2.5px;border-radius:50%;border:.9px solid var(--forest);pointer-events:none}
+#hw .pc.f{background:var(--forest);color:var(--bg)}
+#hw .pc.f::after{border-color:var(--bg)}
+#hw .pc.co{background:#5b3c22;border-color:#5b3c22;color:#fff}
+#hw .pc.co::after{border-color:#c9a877}
+#hw .pc.off{border:1.2px dashed var(--faint);background:transparent;box-shadow:none}
+#hw .pc.off::after{display:none}
+
+/* ---- one side at a time ---- */
+#hw .hw-side{margin-top:54px}
+#hw .hw-side[hidden]{display:none}
+#hw .hw-side>h2{font:500 clamp(30px,3.2vw,38px)/1.15 var(--serif);text-align:center;margin:0 0 6px}
+#hw:not(.js) .hw-side{border-top:1px solid var(--line);padding-top:44px}
+#hw.js .hw-side>h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* the whole path in one row; the last stop is the stag */
+#hw .hw-strip{display:grid;grid-template-columns:repeat(4,1fr);margin:0 auto;max-width:640px;padding:6px 0 0}
+#hw .hw-stop{position:relative}
+#hw .hw-go{display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 6px 4px;color:inherit;text-decoration:none}
+#hw .hw-stop .mk{height:52px;display:flex;align-items:center;justify-content:center}
+#hw .hw-stop .pc{--d:38px}
+#hw .hw-stop .stag{width:52px;height:52px;display:block}
+#hw .hw-stop:not(:last-child)::after{content:"";position:absolute;top:26px;left:calc(50% + 30px);width:calc(100% - 60px);height:1px;background:var(--gilt)}
+#hw .hw-stop .n{display:block;font:500 23px/1.2 var(--serif);color:var(--fg);margin-top:10px}
+#hw .hw-stop .d{display:block;font:400 16.5px/1.4 var(--serif);color:var(--muted);margin-top:4px;text-wrap:balance}
+#hw .hw-go:hover .n{text-decoration:underline;text-decoration-color:var(--gilt);text-decoration-thickness:1px;text-underline-offset:6px}
+
+/* ---- the steps ---- */
+#hw .hw-phase{margin-top:50px;border-top:1px solid var(--fg)}
+#hw .hw-phase,#hw .hw-side{scroll-margin-top:14px}
+@media(min-width:921px){#hw .hw-phase,#hw .hw-side{scroll-margin-top:78px}}
+#hw .hw-phase>h3{font:500 32px/1.15 var(--serif);text-align:center;margin:30px 0 8px}
+#hw .hw-step{display:grid;grid-template-columns:52px minmax(0,1fr);column-gap:6px;padding:26px 0 24px;border-top:1px solid var(--line)}
+#hw .hw-step:first-of-type{border-top:0}
+#hw .hw-step>.pc{--d:34px;margin-top:-2px}
+#hw .hw-step>h4{font:600 24px/1.25 var(--serif);margin:0;align-self:center;letter-spacing:0}
+#hw .hw-step>.b{grid-column:2}
+#hw .hw-step p{margin-top:10px!important;margin-bottom:0!important;max-width:600px}
+#hw .hw-step p.or{margin-top:8px!important}
+#hw .hw-two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 2px}
+#hw .hw-two>div{border:1px solid var(--line);background:var(--panel);padding:14px 16px 15px}
+#hw .hw-two p{margin:0!important;font-size:17.5px!important;line-height:1.55!important}
+#hw .hw-list{margin:12px 0 0;padding:0;list-style:none}
+#hw .hw-list li{position:relative;padding:0 0 0 20px;margin:6px 0 0;font-size:18px!important;line-height:1.55!important}
+#hw .hw-list li::before{content:"";position:absolute;left:2px;top:.72em;width:7px;height:7px;border:1px solid var(--oak-dark);border-radius:50%}
+#hw details.why{margin:14px 0 0}
+#hw details.why p{max-width:560px;margin:6px 0 4px!important}
+
+/* ---- pictures ---- */
+#hw .hw-fig{margin:18px 0 4px;padding:22px 20px 16px;border:1px solid var(--line);background:var(--panel)}
+#hw .hw-fig figcaption{font:italic 400 16.5px/1.5 var(--serif);color:var(--muted);text-align:center;margin-top:16px;text-wrap:balance}
+#hw .l{font:400 16px/1.3 var(--serif);color:var(--fg)}
+
+/* statement, 30 days, deals open */
+#hw .hw-wait{display:flex;align-items:flex-start;justify-content:center;gap:0;max-width:440px;margin:0 auto}
+#hw .hw-wait .end{display:flex;flex-direction:column;align-items:center;gap:8px;flex:0 1 120px;min-width:0;text-align:center}
+#hw .hw-wait .gap{flex:1;position:relative;height:30px;display:flex;align-items:center;justify-content:center;min-width:90px}
+#hw .hw-wait .gap::before{content:"";position:absolute;left:-30px;right:-30px;top:50%;border-top:1px dashed var(--gold-line)}
+#hw .hw-wait .gap span{position:relative;background:var(--panel);padding:0 10px;font:600 16px/1 var(--serif);color:var(--oak-dark)}
+
+/* hunts: boards with pieces on them */
+#hw .hw-hunts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+#hw .hunt{display:flex;flex-direction:column;text-align:center}
+#hw .hunt .hn{font:600 18px/1.3 var(--serif)}
+#hw .hunt .board{flex:1;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:10px;min-height:96px;margin:8px 0;padding:14px 12px;border:1px solid var(--fg);background:conic-gradient(var(--board-sq) 25%,var(--board-sq2) 0 50%,var(--board-sq) 0 75%,var(--board-sq2) 0) 0 0/40px 40px}
+#hw .hunt .pc{--d:28px}
+#hw .hunt .who{display:inline-flex;flex-direction:column;align-items:center;gap:3px}
+#hw .hunt .who .l{font-size:14px;line-height:1;background:var(--panel);padding:1px 5px}
+#hw .hunt .deal{display:inline-flex;flex-direction:column;align-items:center;gap:3px}
+#hw .hunt .hs{font:400 16px/1.35 var(--serif);color:var(--muted);text-wrap:balance}
+
+/* try a call */
+#hw .hw-try{margin:18px 0 4px;border:1px solid var(--fg);background:var(--panel)}
+#hw .hw-try[hidden]{display:none}
+#hw .tr-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+#hw .tr-t{font:600 19px/1.2 var(--serif)}
+#hw .tr-s{font:400 16.5px/1.3 var(--serif);color:var(--muted)}
+#hw .tr-grid{display:grid;grid-template-columns:1fr 1fr}
+#hw .tr-card{padding:18px 18px 20px;border-right:1px solid var(--line)}
+#hw .tr-co{font:600 21px/1.2 var(--serif)}
+#hw .tr-by{font:400 16px/1.4 var(--serif);color:var(--muted);margin-top:3px}
+#hw .tr-q{font:500 19px/1.3 var(--serif);margin-top:18px}
+#hw .tr-yn{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+#hw .tr-yn button{min-height:48px;border:1px solid var(--fg);border-radius:var(--r);background:var(--bg);font:600 15px/1 var(--sans);transition:background .15s,color .15s}
+#hw .tr-yn button:hover:not(:disabled){background:var(--accent-soft)}
+#hw .tr-yn button[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+#hw .tr-yn button:disabled{cursor:default}
+#hw .tr-yn button:disabled:not([aria-pressed=true]){border-color:var(--line);color:var(--faint)}
+#hw .tr-lock{display:flex;align-items:center;gap:8px;margin-top:12px;font:400 16px/1.35 var(--serif);color:var(--muted)}
+#hw .tr-lock svg{flex:none;width:15px;height:15px}
+#hw .tr-all{padding:18px 18px 20px;display:flex;flex-direction:column}
+#hw .tr-h{font:600 19px/1.2 var(--serif)}
+#hw .tr-count{font:400 16px/1.4 var(--serif);color:var(--muted);margin-top:3px}
+#hw .tr-row{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:18px}
+#hw .tk{display:grid;grid-template-rows:16px auto 16px;justify-items:center;row-gap:6px;text-align:center}
+#hw .tk .pc{--d:32px}
+#hw .tk .pc.sealed{border:1.2px dashed var(--faint);background:var(--sunk);color:var(--faint);box-shadow:none}
+#hw .tk .pc.sealed::after{display:none}
+#hw .tk .w{grid-row:1;font:400 15px/16px var(--serif);color:var(--muted)}
+#hw .tk .pc{grid-row:2}
+#hw .tk .a{grid-row:3;font:600 15.5px/16px var(--serif)}
+#hw .tr-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:12px 18px;border-top:1px solid var(--line);background:var(--sunk)}
+#hw .tr-msg{font:400 16.5px/1.4 var(--serif);color:var(--fg)}
+#hw .tr-msg:focus{outline:none}
+#hw .tr-again{font:italic 400 17px/1 var(--serif);padding:11px 2px;margin:-8px 0;text-decoration:underline;text-decoration-color:var(--gilt);text-decoration-thickness:1px;text-underline-offset:5px}
+#hw [data-when][hidden]{display:none}
+@media (prefers-reduced-motion:no-preference){
+  #hw .hw-try[data-state=done] .tk .pc:not(.sealed){animation:hw-pop .35s var(--ease-out) both}
+  #hw .hw-try[data-state=done] .tk:nth-child(2) .pc{animation-delay:.05s}
+  #hw .hw-try[data-state=done] .tk:nth-child(3) .pc{animation-delay:.1s}
+  #hw .hw-try[data-state=done] .tk:nth-child(4) .pc{animation-delay:.15s}
+  #hw .hw-try[data-state=done] .tk:nth-child(5) .pc{animation-delay:.2s}
+}
+@keyframes hw-pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+
+/* who meets whom, and where the money goes */
+#hw .hw-flow{display:grid;gap:18px}
+#hw .lane{display:grid;grid-template-columns:132px minmax(0,1fr);align-items:center;column-gap:14px}
+#hw .lane+.lane{border-top:1px solid var(--line);padding-top:18px}
+#hw .lane .ln{font:600 18px/1.25 var(--serif)}
+#hw .chain{display:flex;align-items:flex-start;justify-content:space-between}
+#hw .node{display:flex;flex-direction:column;align-items:center;gap:7px;flex:0 1 104px;min-width:0;text-align:center}
+#hw .node .l{font-size:15.5px;text-wrap:balance}
+#hw .arr{flex:1 0 22px;height:30px;position:relative}
+#hw .arr::before{content:"";position:absolute;left:2px;right:6px;top:50%;border-top:1px solid var(--forest)}
+#hw .arr::after{content:"";position:absolute;right:5px;top:50%;width:7px;height:7px;border-top:1px solid var(--forest);border-right:1px solid var(--forest);transform:translateY(-50%) rotate(45deg)}
+#hw .arr.ask::before{border-top-style:dashed}
+#hw .arr.gold::before,#hw .arr.gold::after{border-color:var(--oak-dark)}
+#hw .arr.gold::before{border-top-width:2px}
+#hw .lane .aside{grid-column:2;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font:400 16px/1.35 var(--serif);color:var(--muted);text-align:center}
+#hw .lane .aside svg{flex:none;width:15px;height:15px;color:var(--forest)}
+
+/* who can read an application */
+#hw .hw-filter{display:grid;gap:0}
+#hw .fr{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 18px;padding:12px 0;border-top:1px solid var(--line)}
+#hw .fr:first-child{border-top:0;padding-top:0}
+#hw .fr .fl{font:400 17px/1.35 var(--serif);text-wrap:pretty}
+#hw .fr.on .fl{font-weight:600}
+#hw .fr .fd{display:flex;gap:6px}
+#hw .fr .pc{--d:22px;box-shadow:none}
+#hw .fr .pc::after{inset:2px}
+
+/* each member answers alone */
+#hw .hw-alone{display:grid;grid-template-columns:repeat(5,1fr);max-width:460px;margin:0 auto}
+#hw .hw-alone .tk{grid-template-rows:auto 16px;padding:4px 0}
+#hw .hw-alone .tk .pc{grid-row:1}
+#hw .hw-alone .tk .a{grid-row:2}
+#hw .hw-alone .tk+.tk{border-left:1px solid var(--fg)}
+
+/* ---- the end of each side ---- */
+#hw .hw-end{margin-top:26px;padding-top:34px;border-top:1px solid var(--fg);text-align:center}
+#hw .hw-end .btn{margin:0}
+#hw .hw-end p{text-align:center!important;margin-top:18px!important;color:var(--muted)}
+
+/* ---- words and questions, for both sides ---- */
+#hw .hw-more{margin-top:64px;border-top:1px solid var(--line);padding-top:44px}
+#hw .hw-more+.hw-more{margin-top:50px}
+#hw .hw-more>h2{font:500 clamp(28px,3.2vw,38px)/1.15 var(--serif);text-align:center;margin:0 0 20px}
+#hw .hw-words{margin:0;padding:0}
+#hw .hw-words>div{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:baseline;padding:13px 0;border-top:1px solid var(--line)}
+#hw .hw-words>div:first-child{border-top:0}
+#hw .hw-words dt{margin:0;font:600 19px/1.35 var(--serif);color:var(--oak-dark);text-align:right}
+#hw .hw-words dd{margin:0;max-width:520px}
+#hw details.hw-q{border-top:1px solid var(--line)}
+#hw details.hw-q summary{display:flex;align-items:baseline;justify-content:space-between;gap:18px;list-style:none;cursor:pointer;padding:15px 2px}
+#hw details.hw-q summary::-webkit-details-marker{display:none}
+#hw details.hw-q summary h3{font:500 21.5px/1.3 var(--serif);margin:0;letter-spacing:0}
+#hw details.hw-q summary::after{content:"+";flex:none;font:400 24px/1 var(--serif);color:var(--oak-dark);transition:transform .2s}
+#hw details.hw-q[open] summary::after{transform:rotate(45deg)}
+#hw details.hw-q p{margin:0 0 16px!important;padding:0 2px;max-width:600px}
+#hw details.hw-q p+p{margin-top:-6px!important}
+
+/* ---- tablets and phones ---- */
+@media(max-width:600px){
+  #hw .hw-sub{font-size:23px!important}
+  #hw .hw-doors{gap:10px;margin-top:24px}
+  #hw .hw-door{min-height:112px;padding:20px 10px 18px}
+  #hw .hw-door .k{letter-spacing:.18em}
+  #hw .hw-door .t{font-size:18px}
+  #hw .hw-side{margin-top:40px}
+  #hw .hw-strip{grid-template-columns:1fr;max-width:300px;gap:0}
+  #hw .hw-go{display:grid;grid-template-columns:56px minmax(0,1fr);column-gap:10px;align-items:center;text-align:left;padding:7px 0}
+  #hw .hw-stop .mk{grid-row:1/3;height:auto;min-height:52px}
+  #hw .hw-stop .n{margin-top:0;align-self:end;font-size:21px}
+  #hw .hw-stop .d{margin-top:1px;align-self:start}
+  #hw .hw-stop:not(:last-child)::after{top:calc(50% + 24px);left:27.5px;width:1px;height:calc(100% - 48px);background:var(--gold-line)}
+  #hw .hw-phase{margin-top:40px}
+  #hw .hw-phase>h3{font-size:29px;margin-top:26px}
+  #hw .hw-step{grid-template-columns:44px minmax(0,1fr);padding:22px 0 20px}
+  #hw .hw-step>.pc{--d:32px}
+  #hw .hw-step>h4{font-size:22.5px}
+  #hw .hw-step>.b{grid-column:1/-1}
+  #hw .hw-two{grid-template-columns:1fr}
+  #hw .hw-fig{padding:18px 12px 14px}
+  #hw .hw-hunts{grid-template-columns:1fr}
+  #hw .tr-grid{grid-template-columns:1fr}
+  #hw .tr-card{border-right:0;border-bottom:1px solid var(--line)}
+  #hw .lane{grid-template-columns:minmax(0,1fr);row-gap:10px}
+  #hw .lane .ln{text-align:center}
+  #hw .lane .aside{grid-column:1}
+  #hw .node{flex-basis:92px}
+  #hw .node .l{font-size:15px}
+  #hw .lane .aside{align-items:flex-start}
+  #hw .lane .aside svg{margin-top:3px}
+  #hw .fr{grid-template-columns:1fr}
+  #hw .hw-words>div{grid-template-columns:1fr;gap:2px}
+  #hw .hw-words dt{text-align:left}
+  #hw .hw-more{margin-top:48px;padding-top:36px}
+}
+</style>
+</head>
+<body class="home learnpage">
+<header><div class="in">
+  <a class="brand" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" fill="none" stroke="currentColor" stroke-width=".9"/><rect x="4" y="4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="12.4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/><rect x="4" y="12.4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/></svg><span class="wm">Stag <em>Hunt</em></span></a>
+  <nav class="toc"><a href="/learn/the-game/">The Game</a><a href="/learn/the-group/">The Group</a><a href="/learn/how-it-works/" class="on">How it works</a><a href="/apply/">For Founders</a></nav>
+  <div class="hbtns"><a class="btn ghost sm" data-signin href="/login">Member sign in</a></div>
+</div></header>
+<main class="wrap narrow">
+  <p class="crest"><span>Using Stag Hunt</span></p><h1 class="learn-h1">How it works</h1>
+  <div id="hw">
+    <p class="hw-sub">Investors share deals. Founders raise their round.</p>
+    <p class="hw-lead">It's free for both. Pick your side to see your steps.</p>
+    <div class="hw-doors" id="hw-doors" role="group" aria-label="Show the steps for" hidden>
+      <button type="button" class="hw-door" data-for="investors" aria-pressed="true"><span class="k">For investors</span><span class="t">I want to see and share deals</span></button>
+      <button type="button" class="hw-door" data-for="founders" aria-pressed="false"><span class="k">For founders</span><span class="t">I'm raising a round</span></button>
+    </div>
+    <p class="hw-nojs">Go to the steps <a href="#steps-investors">for investors</a> or <a href="#steps-founders">for founders</a>.</p>
+
+    <!-- ============================== investors ============================== -->
+    <div class="hw-side" id="steps-investors" data-side="investors">
+      <h2>For investors</h2>
+      <div class="hw-strip" role="list" aria-label="The four stages for investors">
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#i-join"><span class="mk"><span class="pc f" aria-hidden="true"></span></span><span class="n">Join</span><span class="d">Free. A few minutes.</span></a></div>
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#i-share"><span class="mk"><span class="pc" aria-hidden="true"></span></span><span class="n">Share</span><span class="d">Bring deals you'd back.</span></a></div>
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#i-decide"><span class="mk"><span class="pc f" aria-hidden="true"></span></span><span class="n">Decide</span><span class="d">Yes or no, on your own.</span></a></div>
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#i-invest"><span class="mk"><svg class="stag" viewBox="-37 -37 74 74" aria-hidden="true" focusable="false"><defs><clipPath id="hw-sc1"><circle r="30"/></clipPath></defs><circle r="34" fill="#5b3c22"/><circle r="29.9" fill="none" stroke="#c9a877"/><g clip-path="url(#hw-sc1)" transform="scale(.952)"><g transform="translate(-33.93 -26.43) scale(.5786)" stroke-linecap="round" stroke-linejoin="round"><path d="M57.4 47.8 C60.2 40.8 63.6 34 68.8 27.8 C72.8 23 78 20 84.2 19 M61.4 39.6 C62.2 34.4 61.6 29.6 59.6 24.8 M66.2 31 C66.8 25.6 69 21 72.6 17.2 M75.2 22.4 C77 18 80 15 84.2 12.8" fill="none" stroke="#fff" stroke-width="2.2" opacity=".45"/><path d="M54.8 40.6 C49.6 37.8 45.6 33.6 43.2 27.4 M56.9 31.2 C52.6 27.4 50.6 22 50.8 15.6 M61.6 19.8 C60.8 14.8 61.6 10.2 64 5.6 M67.8 13.2 C70.4 9.4 73.4 6.8 77.6 5.2 M59.8 22.6 C62.8 16.4 67.6 11.8 74.2 9.4" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M53.8 46.4 C54.6 38.4 56.2 30.4 59.8 22.6" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M66 114 C64.8 96 63 78 59.5 66 C58.5 62 57.6 58.5 57 55.5 C60 53.5 63.5 50.5 67.5 47.5 C64.2 46.8 60.3 47.6 57 49.4 C56.2 47.9 55.2 46.8 53.8 46.2 C50.3 47 47.2 49.4 44.2 52.6 C40.3 56.7 36 60.4 31.4 63.6 C28.2 65.8 27.2 68.7 29.2 70.8 C32 72.9 36.2 72.3 40.2 71.1 C44.2 70.4 47.1 72.6 48.9 76.4 C51.2 83 50.6 98 49.4 114 Z" fill="#fff"/><circle cx="41.6" cy="58.4" r="1.6" fill="#5b3c22"/></g></g></svg></span><span class="n">Invest</span><span class="d">Directly with the company.</span></a></div>
+      </div>
+
+      <div class="hw-phase" id="i-join">
+        <h3>Join</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">1</span>
+            <h4><span class="vh">Step 1. </span>Sign up with your email</h4>
+            <div class="b">
+              <p><a href="/login">Enter your email</a> and we send you a sign-in link. Your first sign-in makes your account. No invite, no call, no fee.</p>
+              <details class="why"><summary>Why</summary><p>Every investor who plays makes the game better for the rest, so nothing stands at the door.</p></details>
+            </div>
+          </div>
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">2</span>
+            <h4><span class="vh">Step 2. </span>Say your check size</h4>
+            <div class="b">
+              <p>Give your name and the largest check you'd write. A check is the amount you put into one company. You'll see deals that take a check that size or smaller. Leave it empty to see every deal.</p>
+              <details class="why"><summary>Why</summary><p>Matching. A deal you can't afford is noise, and a yes from someone who can't invest means nothing. Showing each member only the deals that fit cuts search costs and keeps every signal credible.</p></details>
+            </div>
+          </div>
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">3</span>
+            <h4><span class="vh">Step 3. </span>Make your investor statement</h4>
+            <div class="b">
+              <p>Before you see any deal, you say in writing whether you're an accredited investor, and you promise to keep deals confidential. It takes a minute.</p>
+              <p>Accredited generally means $200,000 in yearly income ($300,000 with a spouse or partner), $1 million in net worth not counting your home, or a Series 7, 65 or 82 license.</p>
+              <div class="hw-two">
+                <div><p><b>If you're accredited,</b> other members' deals open for you 30 days after your statement.</p></div>
+                <div><p><b>If you're not,</b> you can still bring deals, start hunts and build your record. You won't see other members' deals.</p></div>
+              </div>
+              <figure class="hw-fig">
+                <div class="hw-wait" aria-hidden="true">
+                  <div class="end"><span class="pc f"></span><span class="l">Your statement</span></div>
+                  <div class="gap"><span>30 days</span></div>
+                  <div class="end"><span class="pc"></span><span class="l">Deals open for you</span></div>
+                </div>
+                <figcaption>While you wait, you can bring deals, start hunts and fill in your profile.</figcaption>
+              </figure>
+              <details class="why"><summary>Why</summary><p>Most private rounds are open only to accredited investors. The 30-day wait means every round reaches only people Stag Hunt already knows.</p></details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-phase" id="i-share">
+        <h3>Share</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">4</span>
+            <h4><span class="vh">Step 4. </span>Join or start a hunt</h4>
+            <div class="b">
+              <p>A hunt is a group that shares deals. Every new member starts in the same first hunt. You can start your own with the people you already trade deals with, and invite them by email. Joining is always their choice.</p>
+              <figure class="hw-fig">
+                <div class="hw-hunts" aria-hidden="true">
+                  <div class="hunt">
+                    <div class="hn">The first hunt</div>
+                    <div class="board"><span class="who"><span class="pc f"></span><span class="l">You</span></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span></div>
+                    <div class="hs">Every new member starts here</div>
+                  </div>
+                  <div class="hunt">
+                    <div class="hn">A hunt you start</div>
+                    <div class="board"><span class="who"><span class="pc f"></span><span class="l">You</span></span><span class="pc"></span><span class="pc"></span><span class="who"><span class="pc co"></span><span class="l">A deal</span></span></div>
+                    <div class="hs">A deal shared here goes to this hunt</div>
+                  </div>
+                </div>
+                <figcaption>You can be in more than one hunt. Each deal goes to one hunt, and members outside it don't see it.</figcaption>
+              </figure>
+            </div>
+          </div>
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">5</span>
+            <h4><span class="vh">Step 5. </span>Share a deal</h4>
+            <div class="b">
+              <p>When you meet a founder worth backing, share the deal with one of your hunts. You say how you know the founders, and you stay their point of contact.</p>
+              <div class="hw-two">
+                <div><p><b>Type it in.</b> The company, where it is today, where it's going, and the round. Add the deck or other links if the founder is fine with the group seeing them.</p></div>
+                <div><p><b>Or let the founder pitch it.</b> Send them a link. They pitch out loud on their own phone, AI drafts the deal from what they say, and you check every answer before you post.</p></div>
+              </div>
+              <p>There are no quotas: share a deal whenever you find one worth backing. Share only companies we'd be proud to back. That means no gambling, no adult content, and nothing built on cheating or deceiving people.</p>
+              <p>Founders also apply to Stag Hunt directly. Once deals are open for you, you can take the call on an application that fits your check, then share it as your own deal.</p>
+              <details class="why"><summary>Why</summary><p>This is the stag hunt itself. Sharing your best deal costs you little, and it earns you everyone else's. When everyone can see who shares, cooperating becomes the stable choice. A vouch from someone who knows the team does the work that weeks of meetings usually do, and their name on the record keeps the vouch honest.</p></details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-phase" id="i-decide">
+        <h3>Decide</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">6</span>
+            <h4><span class="vh">Step 6. </span>Make your call</h4>
+            <div class="b">
+              <p>On other members' deals, you answer one question: want to meet the team? Yes or no, with a line on why. You answer before you see anyone else's call, and your call locks once you submit it.</p>
+              <div class="hw-try" data-state="ask" hidden>
+                <div class="tr-head"><span class="tr-t">Try it</span><span class="tr-s">A made-up deal. Nothing is saved.</span></div>
+                <div class="tr-grid">
+                  <div class="tr-card">
+                    <div class="tr-co">Example company</div>
+                    <div class="tr-by">Brought by a member who knows the founders</div>
+                    <div class="tr-q" id="hw-tr-q">Want to meet the team?</div>
+                    <div class="tr-yn" role="group" aria-labelledby="hw-tr-q"><button type="button" data-call="yes" aria-pressed="false">Yes</button><button type="button" data-call="no" aria-pressed="false">No</button></div>
+                    <div class="tr-lock" data-when="done" hidden><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="3" y="7" width="10" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><span>Locked. A call can't be changed.</span></div>
+                  </div>
+                  <div class="tr-all">
+                    <div class="tr-h">Everyone's calls</div>
+                    <div class="tr-count" data-when="ask">Hidden until you make yours</div>
+                    <div class="tr-count" data-when="yes" hidden>4 of 5 said yes</div>
+                    <div class="tr-count" data-when="no" hidden>3 of 5 said yes</div>
+                    <div class="tr-row" aria-hidden="true">
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="yes" hidden></span><span class="pc" data-when="no" hidden></span><span class="a"><span data-when="yes" hidden>Yes</span><span data-when="no" hidden>No</span></span><span class="w">You</span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>Yes</span></span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>Yes</span></span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>No</span></span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>Yes</span></span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tr-foot">
+                  <div class="tr-msg" role="status" tabindex="-1"><span data-when="ask">Answer to see what the others said.</span><span data-when="yes" hidden>You said yes. Now you can see everyone's calls: four of five said yes.</span><span data-when="no" hidden>You said no. Now you can see everyone's calls: three of five said yes.</span></div>
+                  <button type="button" class="tr-again" data-again data-when="done" hidden>Try it again</button>
+                </div>
+              </div>
+              <p>A yes means you want to meet the founders. It is not a promise to invest. You don't make a call on a deal you brought.</p>
+              <details class="why"><summary>Why</summary><p>Information cascades. Once people see others' answers they tend to copy them, and the group learns nothing new. A crowd is only wise when each judgment is independent.</p></details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-phase" id="i-invest">
+        <h3>Invest</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">7</span>
+            <h4><span class="vh">Step 7. </span>Meet the team and invest directly</h4>
+            <div class="b">
+              <p>Want to meet the founders? Ask the member who brought the deal for an introduction. If you decide to invest, you do it directly with the company, in your own name, on its terms and documents. Stag Hunt never holds or moves money.</p>
+              <figure class="hw-fig">
+                <div class="hw-flow" aria-hidden="true">
+                  <div class="lane">
+                    <div class="ln">The introduction</div>
+                    <div class="chain"><span class="node"><span class="pc f"></span><span class="l">You</span></span><span class="arr ask"></span><span class="node"><span class="pc"></span><span class="l">The member who brought it</span></span><span class="arr ask"></span><span class="node"><span class="pc co"></span><span class="l">The founders</span></span></div>
+                  </div>
+                  <div class="lane">
+                    <div class="ln">The money</div>
+                    <div class="chain"><span class="node"><span class="pc f"></span><span class="l">You</span></span><span class="arr gold"></span><span class="node"><span class="pc co"></span><span class="l">The company</span></span></div>
+                    <div class="aside"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="1" y="1" width="22" height="22" fill="none" stroke="currentColor" stroke-width=".9"/><rect x="4" y="4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="12.4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/><rect x="4" y="12.4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/></svg><span>Stag Hunt never holds or moves it</span></div>
+                  </div>
+                </div>
+                <figcaption>The member who brought the deal introduces you. Your money goes straight to the company.</figcaption>
+              </figure>
+              <p>If the round is full, the founder picks who gets in. After you invest, log it on the deal's page.</p>
+              <details class="why"><summary>Why</summary><p>No one invests on your behalf, so no one else's incentives come between you and your money.</p></details>
+            </div>
+          </div>
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">8</span>
+            <h4><span class="vh">Step 8. </span>Build your record</h4>
+            <div class="b">
+              <p>Every call you make is kept. When a company's outcome is known, your record shows which calls you got right: a yes on a company that did well, or a no on one that didn't. Your record is what other members look at.</p>
+              <p>Nobody can change it without it showing, Stag Hunt included, and you can download it any time.</p>
+              <details class="why"><summary>Why</summary><p>This is a repeated game. When every call is on the record, good judgment and honest sharing build a reputation, and that reputation is worth more than any single deal.</p></details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-end">
+        <a class="btn" href="/login">Join free</a>
+        <p>Raising a round instead? <a href="#founders" data-for="founders">See the steps for founders</a>.</p>
+      </div>
+    </div>
+
+    <!-- ============================== founders ============================== -->
+    <div class="hw-side" id="steps-founders" data-side="founders">
+      <h2>For founders</h2>
+      <div class="hw-strip" role="list" aria-label="The four stages for founders">
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#f-apply"><span class="mk"><span class="pc f" aria-hidden="true"></span></span><span class="n">Apply</span><span class="d">About 15 minutes.</span></a></div>
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#f-talk"><span class="mk"><span class="pc" aria-hidden="true"></span></span><span class="n">Talk</span><span class="d">A member calls you.</span></a></div>
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#f-decide"><span class="mk"><span class="pc f" aria-hidden="true"></span></span><span class="n">Members decide</span><span class="d">Each says yes or no, alone.</span></a></div>
+        <div class="hw-stop" role="listitem"><a class="hw-go" href="#f-raise"><span class="mk"><svg class="stag" viewBox="-37 -37 74 74" aria-hidden="true" focusable="false"><defs><clipPath id="hw-sc2"><circle r="30"/></clipPath></defs><circle r="34" fill="#5b3c22"/><circle r="29.9" fill="none" stroke="#c9a877"/><g clip-path="url(#hw-sc2)" transform="scale(.952)"><g transform="translate(-33.93 -26.43) scale(.5786)" stroke-linecap="round" stroke-linejoin="round"><path d="M57.4 47.8 C60.2 40.8 63.6 34 68.8 27.8 C72.8 23 78 20 84.2 19 M61.4 39.6 C62.2 34.4 61.6 29.6 59.6 24.8 M66.2 31 C66.8 25.6 69 21 72.6 17.2 M75.2 22.4 C77 18 80 15 84.2 12.8" fill="none" stroke="#fff" stroke-width="2.2" opacity=".45"/><path d="M54.8 40.6 C49.6 37.8 45.6 33.6 43.2 27.4 M56.9 31.2 C52.6 27.4 50.6 22 50.8 15.6 M61.6 19.8 C60.8 14.8 61.6 10.2 64 5.6 M67.8 13.2 C70.4 9.4 73.4 6.8 77.6 5.2 M59.8 22.6 C62.8 16.4 67.6 11.8 74.2 9.4" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M53.8 46.4 C54.6 38.4 56.2 30.4 59.8 22.6" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M66 114 C64.8 96 63 78 59.5 66 C58.5 62 57.6 58.5 57 55.5 C60 53.5 63.5 50.5 67.5 47.5 C64.2 46.8 60.3 47.6 57 49.4 C56.2 47.9 55.2 46.8 53.8 46.2 C50.3 47 47.2 49.4 44.2 52.6 C40.3 56.7 36 60.4 31.4 63.6 C28.2 65.8 27.2 68.7 29.2 70.8 C32 72.9 36.2 72.3 40.2 71.1 C44.2 70.4 47.1 72.6 48.9 76.4 C51.2 83 50.6 98 49.4 114 Z" fill="#fff"/><circle cx="41.6" cy="58.4" r="1.6" fill="#5b3c22"/></g></g></svg></span><span class="n">Raise</span><span class="d">They invest directly in your company.</span></a></div>
+      </div>
+
+      <div class="hw-phase" id="f-apply">
+        <h3>Apply</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">1</span>
+            <h4><span class="vh">Step 1. </span>Send your application</h4>
+            <div class="b">
+              <p><a href="/apply/">Fill in the application</a>. It takes about 15 minutes. If the page offers it, you can pitch out loud to an AI interviewer instead: it fills in the form from what you say, and you check every answer before you send. If you don't send it, no member sees it.</p>
+              <p>Have these ready:</p>
+              <ul class="hw-list">
+                <li>A one-minute video, shared as a link</li>
+                <li>Your numbers: customers, revenue, growth, what you charge</li>
+                <li>Your round: amount, terms, smallest check, closing date</li>
+                <li>Your pitch deck, if you have one</li>
+              </ul>
+              <p>Members only back companies they'd be proud of: no gambling, no adult content, and nothing built on cheating or deceiving people.</p>
+            </div>
+          </div>
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">2</span>
+            <h4><span class="vh">Step 2. </span>Only investors who fit can read it</h4>
+            <div class="b">
+              <p>Your application goes only to members who have stated in writing that they're accredited and will keep it confidential, and whose check size fits your round. Never to the public.</p>
+              <figure class="hw-fig">
+                <div class="hw-filter" aria-hidden="true">
+                  <div class="fr"><div class="fl">Every member</div><div class="fd"><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span></div></div>
+                  <div class="fr"><div class="fl">Stated in writing that they're accredited and will keep it confidential</div><div class="fd"><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc"></span><span class="pc off"></span><span class="pc off"></span><span class="pc off"></span></div></div>
+                  <div class="fr on"><div class="fl">And their check size fits your round</div><div class="fd"><span class="pc f"></span><span class="pc f"></span><span class="pc f"></span><span class="pc off"></span><span class="pc off"></span><span class="pc off"></span><span class="pc off"></span><span class="pc off"></span></div></div>
+                </div>
+                <figcaption>Only the members left at the end can read your application.</figcaption>
+              </figure>
+              <p>Only the member who takes your call sees your email address. If you pitched out loud, the members who can read your application can also read the transcript and listen to the recording. The <a href="/privacy/">Privacy Policy</a> has the details.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-phase" id="f-talk">
+        <h3>Talk</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">3</span>
+            <h4><span class="vh">Step 3. </span>A member calls you</h4>
+            <div class="b">
+              <p>A member reads your application and calls you. The members' rule is an answer within two weeks, and always a reply.</p>
+              <details class="why"><summary>Why</summary><p>A real conversation finds what a form can't, in both directions.</p></details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-phase" id="f-decide">
+        <h3>Members decide</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">4</span>
+            <h4><span class="vh">Step 4. </span>They share your company with their hunt</h4>
+            <div class="b">
+              <p>If that member would back you, they share your company with their hunt: the group of investors they share deals with. The deal shows that you applied, and the member who took your call stays your point of contact.</p>
+            </div>
+          </div>
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">5</span>
+            <h4><span class="vh">Step 5. </span>Each member says yes or no, alone</h4>
+            <div class="b">
+              <p>Every member it fits answers one question: want to meet the team? Each one answers before seeing anyone else's answer.</p>
+              <figure class="hw-fig">
+                <div class="hw-alone" aria-hidden="true">
+                  <span class="tk"><span class="pc f"></span><span class="a">Yes</span></span>
+                  <span class="tk"><span class="pc"></span><span class="a">No</span></span>
+                  <span class="tk"><span class="pc f"></span><span class="a">Yes</span></span>
+                  <span class="tk"><span class="pc f"></span><span class="a">Yes</span></span>
+                  <span class="tk"><span class="pc"></span><span class="a">No</span></span>
+                </div>
+                <figcaption>Five members, five separate answers. Nobody sees the others' first.</figcaption>
+              </figure>
+              <details class="why"><summary>Why</summary><p>Independent answers mean one skeptic can't sink you and one fan can't oversell you.</p></details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-phase" id="f-raise">
+        <h3>Raise</h3>
+        <div role="list">
+          <div class="hw-step" role="listitem">
+            <span class="pc f" aria-hidden="true">6</span>
+            <h4><span class="vh">Step 6. </span>Members invest directly in your company</h4>
+            <div class="b">
+              <p>Members who want to meet you ask for an introduction. Anyone who invests does it directly with your company, in their own name, on your terms and documents. If the round is full, you pick who gets in.</p>
+              <figure class="hw-fig">
+                <div class="hw-flow" aria-hidden="true">
+                  <div class="lane">
+                    <div class="ln">The money</div>
+                    <div class="chain"><span class="node"><span class="pc f"></span><span class="l">A member who invests</span></span><span class="arr gold"></span><span class="node"><span class="pc co"></span><span class="l">Your company</span></span></div>
+                    <div class="aside"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="1" y="1" width="22" height="22" fill="none" stroke="currentColor" stroke-width=".9"/><rect x="4" y="4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="12.4" width="7.6" height="7.6" fill="currentColor"/><rect x="12.4" y="4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/><rect x="4" y="12.4" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width=".6"/></svg><span>Stag Hunt never holds it and takes nothing</span></div>
+                  </div>
+                </div>
+                <figcaption>Each check goes straight from the member to your company.</figcaption>
+              </figure>
+              <p>It costs nothing. No fund, no fees, no strings. Applying is not a promise of investment.</p>
+              <p>Deal terms are never published, so your round stays yours to announce.</p>
+              <details class="why"><summary>Why</summary><p>We take nothing from founders, so no one has a reason to push you toward a deal that isn't right.</p></details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-end">
+        <a class="btn" href="/apply/">Apply</a>
+        <p>Investing instead? <a href="#investors" data-for="investors">See the steps for investors</a>.</p>
+      </div>
+    </div>
+
+    <!-- ============================== for both ============================== -->
+    <div class="hw-more">
+      <h2>Words we use</h2>
+      <dl class="hw-words">
+        <div><dt>Hunt</dt><dd>A group of members who share deals with each other. You can be in more than one.</dd></div>
+        <div><dt>Deal</dt><dd>A startup raising money, shared by a member who knows the founders or took their call.</dd></div>
+        <div><dt>Call</dt><dd>Your yes or no on a deal: do you want to meet the team?</dd></div>
+        <div><dt>Check size</dt><dd>For you, the largest amount you'd put into one company. For a deal, the smallest check the founder takes. You see the deals that fit.</dd></div>
+        <div><dt>Investor statement</dt><dd>What you say in writing before you see any deal: whether you're accredited, and that you'll keep deals confidential.</dd></div>
+        <div><dt>Accredited investor</dt><dd>Generally, a person with $200,000 in yearly income ($300,000 with a spouse or partner), $1 million in net worth not counting their home, or a Series 7, 65 or 82 license.</dd></div>
+        <div><dt>Vouch</dt><dd>Sharing a deal puts your name on it. You say how you know the founders, and you make the introductions.</dd></div>
+        <div><dt>Record</dt><dd>The history of your calls, and how those companies turned out.</dd></div>
+      </dl>
+    </div>
+
+    <div class="hw-more">
+      <h2>Common questions</h2>
+      <details class="hw-q"><summary><h3>What does it cost?</h3></summary><p>Nothing, for investors or founders. No dues, no fees and no share of profits.</p></details>
+      <details class="hw-q"><summary><h3>Does Stag Hunt hold or invest my money?</h3></summary><p>No. Stag Hunt is not a fund. It never pools, holds or moves money, and it never invests for anyone. Every investment is made directly between a member and a company, on that company's own terms and documents.</p></details>
+      <details class="hw-q"><summary><h3>Do I have to be accredited to join?</h3></summary><p>No. Anyone can make an account. Other members' deals are shown only to members who say in writing that they're accredited. If you're not, you can still bring deals, start hunts and build your record.</p></details>
+      <details class="hw-q"><summary><h3>Why do I wait 30 days before I see deals?</h3></summary><p>So that every round reaches only people Stag Hunt already knows. While you wait, you can bring deals, start hunts and fill in your profile.</p></details>
+      <details class="hw-q"><summary><h3>Who can see a deal I share?</h3></summary><p>The members of the hunt you share it in, if they can see deals and their check size fits. Members outside that hunt don't.</p><p>Two exceptions. Observers, read-only accounts that every member can see listed, can read every deal. And an admin can open a deal that a member has reported. No deal is ever shown publicly.</p></details>
+      <details class="hw-q"><summary><h3>Can I change my call?</h3></summary><p>No. A call locks when you submit it, so it stays your own read.</p></details>
+      <details class="hw-q"><summary><h3>Is a yes a promise to invest?</h3></summary><p>No. A yes means you want to meet the founders. Whether you invest is your own decision, on your own clock.</p></details>
+      <details class="hw-q"><summary><h3>How will I hear about new deals?</h3></summary><p>By email when a deal that fits you is shared, and in a digest every Monday. You can turn either one off in your profile.</p></details>
+      <details class="hw-q"><summary><h3>Is any of this investment advice?</h3></summary><p>No. Members' calls and comments are opinions, not investment advice. Startup investing is illiquid and high-risk, and most startups fail. Invest only what you can afford to lose entirely.</p></details>
+    </div>
+  </div>
+  <nav class="pager"><a href="/learn/the-group/"><span>← About us</span>The Group</a><a class="nx" href="/apply/"><span>Next →</span>For Founders</a></nav>
+</main>
+<footer class="forestfoot"><div class="fbar"><div class="wrap">Stag Hunt is a new way to invest: investors share every good early-stage deal they find, and each decides alone. It is not a fund, broker-dealer, funding portal or investment adviser, and it does not offer, sell or recommend securities. It never pools, holds or moves money. Neither Stag Hunt nor its organizer or members take fees or compensation from any company discussed. Members' calls and comments are opinions, not investment advice. Every investment is made directly between a member and a company, on that company's own terms and documents. Startup investing is illiquid and high-risk; most startups fail. Invest only what you can afford to lose entirely.<span class="flinks"><a href="/apply/">For founders</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/contact/">Contact</a></span></div></div></footer>
+<script>(function(){const set=(on)=>document.querySelectorAll("[data-signin]").forEach(a=>{a.textContent=on?"Open Stag Hunt":"Member sign in";a.href=on?"/app":"/login";});
+let k;try{k=localStorage.getItem("sh_in")}catch(e){} if(k==="1")set(true);
+fetch("/api/me").then(r=>{set(r.ok);try{r.ok?localStorage.setItem("sh_in","1"):localStorage.removeItem("sh_in")}catch(e){}}).catch(()=>{});})();</script>
+<script>(function(){var n=document.querySelector("header nav.toc"),a=n&&n.querySelector("a.on");if(a&&n.scrollWidth>n.clientWidth){var r=a.getBoundingClientRect(),q=n.getBoundingClientRect();n.scrollLeft+=r.left-q.left-(q.width-r.width)/2;}})();</script>
+<script>
+/* How it works: shows one side at a time (investors or founders) and runs the small "try a call" example.
+   Without JavaScript both sides simply show, one after the other. */
+(function () {
+  var hw = document.getElementById("hw"); if (!hw) return;
+  var sides = {}, doors = [].slice.call(hw.querySelectorAll(".hw-door"));
+  [].forEach.call(hw.querySelectorAll(".hw-side"), function (s) { sides[s.getAttribute("data-side")] = s; });
+  function show(which, remember) {
+    if (!sides[which]) which = "investors";
+    for (var k in sides) sides[k].hidden = k !== which;
+    doors.forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-for") === which)); });
+    if (remember) { try { history.replaceState(null, "", "#" + which); } catch (e) {} }
+  }
+  // #founders or #investors picks the side; a link to anything inside a side opens that side
+  function fromHash() {
+    var id = decodeURIComponent(location.hash.slice(1)); if (!id) return "";
+    if (sides[id]) return id;
+    var el = document.getElementById(id), side = el && el.closest(".hw-side");
+    return side ? side.getAttribute("data-side") : "";
+  }
+  hw.classList.add("js");
+  document.getElementById("hw-doors").hidden = false;
+  show(fromHash() || "investors");
+  // a link straight to one part (say #f-raise): the other side has just been hidden above it, so line the part up again
+  (function () { var id = decodeURIComponent(location.hash.slice(1)), el = id && !sides[id] && document.getElementById(id);
+    if (el && el.closest(".hw-side")) requestAnimationFrame(function () { el.scrollIntoView({ block: "start" }); }); })();
+  doors.forEach(function (b) { b.addEventListener("click", function () { show(b.getAttribute("data-for"), true); }); });
+  hw.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("a[data-for]"); if (!a) return;
+    e.preventDefault(); show(a.getAttribute("data-for"), true);
+    var calm = document.documentElement.hasAttribute("data-a11y-calm") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("hw-doors").scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+    var on = hw.querySelector('.hw-door[aria-pressed="true"]'); if (on) on.focus({ preventScroll: true });
+  });
+  addEventListener("hashchange", function () { var w = fromHash(); if (w) show(w); });
+
+  // Try a call: answer, it locks, and only then do the others' calls show. Every line is already in the page; this only shows and hides.
+  [].forEach.call(hw.querySelectorAll(".hw-try"), function (t) {
+    function set(call) {
+      t.setAttribute("data-state", call ? "done" : "ask");
+      [].forEach.call(t.querySelectorAll("[data-when]"), function (el) {
+        var w = el.getAttribute("data-when");
+        el.hidden = !(call ? w === "done" || w === call : w === "ask");
+      });
+      [].forEach.call(t.querySelectorAll("button[data-call]"), function (b) {
+        b.disabled = !!call; b.setAttribute("aria-pressed", String(b.getAttribute("data-call") === call));
+      });
+    }
+    t.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("button"); if (!b || !t.contains(b)) return;
+      if (b.hasAttribute("data-call")) { set(b.getAttribute("data-call")); t.querySelector(".tr-msg").focus({ preventScroll: true }); }
+      else if (b.hasAttribute("data-again")) { set(""); t.querySelector("button[data-call]").focus({ preventScroll: true }); }
+    });
+    t.hidden = false; set("");
+  });
+})();
+</script>
+</body>
+</html>
