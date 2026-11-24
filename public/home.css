@@ -834,3 +834,8 @@ main.narrow{position:relative}
 
 .founder a.sig{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);transition:border-color .2s}
 .founder a.sig:hover{border-bottom-color:currentColor}
+
+/* Apply, "Or just talk" (Nov 24): room under the button, and the recording note centered under it like the button */
+.applypage .talk .talkrow{margin-top:18px}
+body.learnpage main.applypage .talk .talkrow+.ahint{margin:22px auto 0!important;max-width:540px!important;text-align:center!important;text-wrap:balance}
+body.learnpage main.applypage .aprep.talk{padding-bottom:26px!important}
