@@ -23,7 +23,7 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
 </div></header>
 <main class="wrap narrow legal contactpage">
 <p class="crest"><span>Get in touch</span></p><h1 class="learn-h1">Contact</h1>
-<p>Questions about Stag Hunt, membership, the Terms or your data? Send a message and we'll reply by email.</p>
+<p>Questions about Stag Hunt, membership, the Terms or your data? Send a message. Replies come by email.</p>
 <p>Want to join? Say what you invest in and the size of your usual check.</p>
 <form id="cform" class="cform" novalidate>
   <div class="cgrid"><div><label for="c-name">Name</label><input id="c-name" name="name" required maxlength="80" autocomplete="name"></div>
@@ -47,7 +47,7 @@ document.getElementById("cform").addEventListener("submit", async (e) => {
     const r = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.message || "That didn't send. Please try again.");
-    f.reset(); out.textContent = "Thanks. Your message is on its way, and we'll reply by email."; out.className = "cmsg ok";
+    f.reset(); out.textContent = "Thanks. Your message is on its way. Replies come by email."; out.className = "cmsg ok";
   } catch (err) { out.textContent = err.message; out.className = "cmsg err"; }
   btn.disabled = false;
 });
