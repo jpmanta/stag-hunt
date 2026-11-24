@@ -603,7 +603,7 @@ async function viewInbound(_, seq) {
   if (seq !== renderSeq) return;
   $("#view").innerHTML = `
     <div class="pagehead"><div><h1>Founder applications</h1></div><button class="btn ghost" type="button" id="copyapply">Copy the apply link</button></div>
-    <p class="muted" style="max-width:640px;margin-top:-6px">Founders who applied at staghunts.com/apply. Nothing here is a deal yet. If one fits what you'd back, take the call. Then post it as your deal, and every member it fits says yes or no.</p>
+    <p class="muted" style="max-width:640px;margin-top:-6px">Founders who applied at staghunts.com/apply. Nothing here is a deal yet. If one fits what you'd back, take the call, then post it as your deal for members to say yes or no.</p>
     <div class="panel"><div class="list">${apps.length ? apps.map((a) => `
       <a href="#/inbound/${a.id}"><span class="grow"><b>${esc(a.company)}</b> <span class="small muted">${esc(a.one_liner)}</span>
         <span class="small faint" style="display:block;margin-top:2px">${esc(a.founder_name)} · ${esc(a.round_type)}${a.raise_amount ? " · Raising " + esc(a.raise_amount) : ""} · ${ago(a.created_at)}</span></span>
@@ -1098,7 +1098,7 @@ async function viewHistory(_, seq) {
       <ol class="hsteps">
         <li><b>Bring a deal</b><span>A company whose founders you can vouch for.</span></li>
         <li><b>Make your call</b><span>Yes or no on other members' deals, with one line on why.</span></li>
-        <li><b>Look back</b><span>When you learn how a deal turned out, your record shows whether you were right.</span></li>
+        <li><b>Look back</b><span>When an outcome is known, your record shows if you were right.</span></li>
       </ol>
       <div class="row"><a class="btn" href="#/deals/new">Share a deal</a><a class="btn ghost" href="#/deals">See deals</a></div>
     </div></div>`;
