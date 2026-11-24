@@ -123,7 +123,8 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
 #hw .tr-grid{display:grid;grid-template-columns:1fr 1fr}
 #hw .tr-card{padding:18px 18px 20px;border-right:1px solid var(--line)}
 #hw .tr-co{font:600 21px/1.2 var(--serif)}
-#hw .tr-by{font:400 16px/1.4 var(--serif);color:var(--muted);margin-top:3px}
+#hw .tr-what{font:400 17.5px/1.35 var(--serif);margin-top:2px}
+#hw .tr-by{font:400 16px/1.4 var(--serif);color:var(--muted);margin-top:3px;min-height:2.8em}
 #hw .tr-q{font:500 19px/1.3 var(--serif);margin-top:18px}
 #hw .tr-yn{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 #hw .tr-yn button{min-height:48px;border:1px solid var(--fg);border-radius:var(--r);background:var(--bg);font:600 15px/1 var(--sans);transition:background .15s,color .15s}
@@ -375,10 +376,11 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
             <div class="b">
               <p>On other members' deals, you answer one question: want to meet the team? Yes or no, with a line on why. You answer before you see anyone else's call, and your call locks once you submit it.</p>
               <div class="hw-try" data-state="ask" hidden>
-                <div class="tr-head"><span class="tr-t">Try it</span><span class="tr-s">A made-up deal. Nothing is saved.</span></div>
+                <div class="tr-head"><span class="tr-t">Try it</span><span class="tr-s">A made-up deal with made-up answers. Nothing is saved.</span></div>
                 <div class="tr-grid">
                   <div class="tr-card">
                     <div class="tr-co">Example company</div>
+                    <div class="tr-what">Payroll for small farms</div>
                     <div class="tr-by">Brought by a member who knows the founders</div>
                     <div class="tr-q" id="hw-tr-q">Want to meet the team?</div>
                     <div class="tr-yn" role="group" aria-labelledby="hw-tr-q"><button type="button" data-call="yes" aria-pressed="false">Yes</button><button type="button" data-call="no" aria-pressed="false">No</button></div>
@@ -387,20 +389,25 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
                   <div class="tr-all">
                     <div class="tr-h">Everyone's calls</div>
                     <div class="tr-count" data-when="ask">Hidden until you make yours</div>
-                    <div class="tr-count" data-when="yes" hidden>4 of 5 said yes</div>
-                    <div class="tr-count" data-when="no" hidden>3 of 5 said yes</div>
+                    <div class="tr-count" data-when="done" hidden></div>
                     <div class="tr-row" aria-hidden="true">
-                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="yes" hidden></span><span class="pc" data-when="no" hidden></span><span class="a"><span data-when="yes" hidden>Yes</span><span data-when="no" hidden>No</span></span><span class="w">You</span></span>
-                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>Yes</span></span></span>
-                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>Yes</span></span></span>
-                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>No</span></span></span>
-                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc f" data-when="done" hidden></span><span class="a"><span data-when="done" hidden>Yes</span></span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc" data-when="done" hidden></span><span class="a" data-when="done" hidden></span><span class="w">You</span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc" data-when="done" hidden></span><span class="a" data-when="done" hidden></span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc" data-when="done" hidden></span><span class="a" data-when="done" hidden></span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc" data-when="done" hidden></span><span class="a" data-when="done" hidden></span></span>
+                      <span class="tk"><span class="pc sealed" data-when="ask">?</span><span class="pc" data-when="done" hidden></span><span class="a" data-when="done" hidden></span></span>
                     </div>
                   </div>
                 </div>
                 <div class="tr-foot">
-                  <div class="tr-msg" role="status" tabindex="-1"><span data-when="ask">Answer to see what the others said.</span><span data-when="yes" hidden>You said yes. Now you can see everyone's calls: four of five said yes.</span><span data-when="no" hidden>You said no. Now you can see everyone's calls: three of five said yes.</span></div>
-                  <button type="button" class="tr-again" data-again data-when="done" hidden>Try it again</button>
+                  <div class="tr-msg" role="status" tabindex="-1"><span data-when="ask">Answer to see what the others said.</span><span data-when="done" hidden></span></div>
+                  <button type="button" class="tr-again" data-again data-when="done" hidden>Try another deal</button>
+                </div>
+                <div class="tr-lines" hidden>
+                  <ul data-lines="what"><li>Scheduling for dental clinics</li><li>Payroll for small farms</li><li>Batteries for delivery bikes</li><li>A market for used lab equipment</li><li>Billing for home care agencies</li><li>Sensors that find water leaks</li><li>Bookkeeping for food trucks</li><li>Pricing software for solar roofs</li><li>Training for machine shop crews</li><li>Insurance for truck owners</li><li>Hiring for restaurant kitchens</li><li>Route planning for school buses</li></ul>
+                  <ul data-lines="by"><li>Brought by a member who knows the founders</li><li>Brought by a member who worked with the founders</li><li>Brought by a member who backed their last company</li><li>Brought by a member who is one of their customers</li></ul>
+                  <ul data-lines="count"><li>0 of 5 said yes</li><li>1 of 5 said yes</li><li>2 of 5 said yes</li><li>3 of 5 said yes</li><li>4 of 5 said yes</li><li>5 of 5 said yes</li></ul>
+                  <ul data-lines="said"><li data-k="yes1">You said yes. Now you can see everyone's calls: 1 of 5 said yes.</li><li data-k="yes2">You said yes. Now you can see everyone's calls: 2 of 5 said yes.</li><li data-k="yes3">You said yes. Now you can see everyone's calls: 3 of 5 said yes.</li><li data-k="yes4">You said yes. Now you can see everyone's calls: 4 of 5 said yes.</li><li data-k="yes5">You said yes. Now you can see everyone's calls: 5 of 5 said yes.</li><li data-k="no0">You said no. Now you can see everyone's calls: 0 of 5 said yes.</li><li data-k="no1">You said no. Now you can see everyone's calls: 1 of 5 said yes.</li><li data-k="no2">You said no. Now you can see everyone's calls: 2 of 5 said yes.</li><li data-k="no3">You said no. Now you can see everyone's calls: 3 of 5 said yes.</li><li data-k="no4">You said no. Now you can see everyone's calls: 4 of 5 said yes.</li></ul>
                 </div>
               </div>
               <p>A yes means you want to meet the founders. It is not a promise to invest. You don't make a call on a deal you brought.</p>
@@ -649,14 +656,30 @@ fetch("/api/me").then(r=>{set(r.ok);try{r.ok?localStorage.setItem("sh_in","1"):l
   });
   addEventListener("hashchange", function () { var w = fromHash(); if (w) show(w); });
 
-  // Try a call: answer, it locks, and only then do the others' calls show. Every line is already in the page; this only shows and hides.
+  // Try a call: a made-up deal with made-up answers, different every round. You answer, it locks, and only then do the others' calls show.
+  // Every line it can show is already written in the page (the hidden .tr-lines lists); this picks among them.
+  function pick(list, not) { var x; do { x = list[Math.floor(Math.random() * list.length)]; } while (list.length > 1 && x === not); return x; }
   [].forEach.call(hw.querySelectorAll(".hw-try"), function (t) {
+    function lines(name) { return [].map.call(t.querySelectorAll('.tr-lines [data-lines="' + name + '"] li'), function (li) { return li.textContent; }); }
+    var WHAT = lines("what"), BY = lines("by"), COUNT = lines("count"), tks = [].slice.call(t.querySelectorAll(".tk")),
+      what = t.querySelector(".tr-what"), by = t.querySelector(".tr-by"),
+      count = t.querySelector('.tr-count[data-when="done"]'), said = t.querySelector('.tr-msg [data-when="done"]'), others = [];
+    if (!WHAT.length || !BY.length || COUNT.length !== tks.length + 1) return;
+    function deal() {   // a new made-up deal, and what the other members will turn out to have said
+      what.textContent = pick(WHAT, what.textContent); by.textContent = pick(BY, by.textContent);
+      var yes = [0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4][Math.floor(Math.random() * 11)];
+      others = tks.slice(1).map(function (x, i) { return i < yes; });
+      for (var i = others.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), x = others[i]; others[i] = others[j]; others[j] = x; }
+    }
     function set(call) {
+      if (call) {
+        var calls = [call === "yes"].concat(others), n = calls.filter(Boolean).length;
+        tks.forEach(function (tk, i) { tk.querySelector(".pc:not(.sealed)").classList.toggle("f", calls[i]); tk.querySelector(".a").textContent = calls[i] ? "Yes" : "No"; });
+        count.textContent = COUNT[n];
+        said.textContent = t.querySelector('.tr-lines [data-k="' + call + n + '"]').textContent;
+      } else deal();
       t.setAttribute("data-state", call ? "done" : "ask");
-      [].forEach.call(t.querySelectorAll("[data-when]"), function (el) {
-        var w = el.getAttribute("data-when");
-        el.hidden = !(call ? w === "done" || w === call : w === "ask");
-      });
+      [].forEach.call(t.querySelectorAll("[data-when]"), function (el) { el.hidden = (el.getAttribute("data-when") === "done") !== !!call; });
       [].forEach.call(t.querySelectorAll("button[data-call]"), function (b) {
         b.disabled = !!call; b.setAttribute("aria-pressed", String(b.getAttribute("data-call") === call));
       });
