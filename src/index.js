@@ -3,6 +3,7 @@ export { Hub } from "./hub.js";
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import { draftApplication, draftDeal, fillDeal } from "./draft-via-mastra.js";
+import { videoPart } from "./video-part.js";
 
 const RP_ID = "staghunts.com";
 const RP_ORIGIN = "https://staghunts.com";
@@ -59,7 +60,11 @@ async function handle(request, env, ctx) {
   }
   if (url.pathname === "/.well-known/apple-app-site-association") return appleSiteFile(env);
   if (url.pathname === "/.well-known/assetlinks.json") return androidSiteFile(env);
-  if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
+  if (!url.pathname.startsWith("/api/")) {
+    // A video asked for in parts (Safari and every iPhone do) needs a "206" answer the file store does not give.
+    if (url.pathname.endsWith(".mp4") && request.headers.has("range")) return videoPart(request, env);
+    return env.ASSETS.fetch(request);
+  }
 
   try {
     if (request.method !== "GET" && !sameOrigin(request, url)) return json({ error: "bad_origin" }, 403);
