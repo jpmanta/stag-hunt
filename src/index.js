@@ -12,6 +12,10 @@ const CODE_TTL = 10 * 60;
 const RESEND_AFTER = 60;
 const MAX_ATTEMPTS = 5;
 const REVIEW_WRONG_PER_DAY = 20;   // a million possible codes at 20 a day is over a century of guessing
+const WRONG_PER_DAY = 20;          // wrong codes per address per day, however many codes are requested
+const CODES_PER_HOUR = 8;          // sign-in emails per address per hour
+const DEALS_PER_DAY = 10;          // deals one account can share in a day (each one emails the hunt)
+const INVITES_PER_DAY = 50;        // hunt invites one account can send in a day
 const SESSION_TTL = 365 * 24 * 3600;
 const IP_LIMIT = 10;
 const COOKIE = "sh_session";
@@ -182,7 +186,7 @@ async function route(request, env, ctx, url) {
   if (m === "GET" && p === "/api/overview") return overview(env, me);
   if (m === "GET" && p === "/api/members") return listMembers(env, me);
   if (m === "GET" && (mt = p.match(/^\/api\/members\/([0-9a-z-]{8,40})$/))) return getMember(env, mt[1], me);
-  if (m === "GET" && (mt = p.match(/^\/api\/photo\/([0-9a-z-]{8,40})$/))) return getPhoto(env, mt[1]);
+  if (m === "GET" && (mt = p.match(/^\/api\/photo\/([0-9a-z-]{8,40})$/))) return getPhoto(env, mt[1], me);
   if (m === "POST" && p === "/api/me/photo") return updatePhoto(request, env, me);
   if (m === "POST" && p === "/api/report") return report(request, env, me);
   if (m === "POST" && (mt = p.match(/^\/api\/members\/([0-9a-z-]{8,40})\/(block|unblock)$/))) return blockMember(env, me, mt[1], mt[2] === "block");
@@ -217,7 +221,7 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && (mt = p.match(/^\/api\/deals\/([0-9a-f-]{36})\/(share|unshare)$/))) return shareDeal(request, env, me, mt[1], mt[2]);
   if (m === "GET" && p === "/api/inbound") return listInbound(env, me);
   if ((mt = p.match(/^\/api\/inbound\/([0-9a-f-]{36})$/)) && m === "GET") return getApplication(env, me, mt[1]);
-  if ((mt = p.match(/^\/api\/inbound\/([0-9a-f-]{36})\/interview$/)) && m === "GET") return interviewAudio(env, mt[1]);
+  if ((mt = p.match(/^\/api\/inbound\/([0-9a-f-]{36})\/interview$/)) && m === "GET") return interviewAudio(env, me, mt[1]);
   if (m === "POST" && (mt = p.match(/^\/api\/inbound\/([0-9a-f-]{36})\/(claim|release)$/))) return claimApplication(env, me, mt[1], mt[2]);
   if (m === "GET" && p === "/api/hunts") return listHunts(env, me);
   if (m === "POST" && p === "/api/hunts") return createHunt(request, env, me);
@@ -269,6 +273,10 @@ async function requestCode(request, env) {
     return json({ ok: true });
   }
 
+  // One address can't be flooded with sign-in emails, whoever asks and from wherever.
+  if (!(await allow(env, `mail:${email}`, CODES_PER_HOUR, 3600)))
+    return json({ error: "rate_limited", message: "Too many sign-in emails for this address. Use the newest one, or try again in an hour." }, 429);
+
   const code = sixDigits();
   const codeHash = await sha256(`${env.AUTH_SECRET}:${email}:${code}`);
   const linkToken = randomToken();
@@ -300,23 +308,23 @@ async function verifyCode(request, env) {
   if (!email || code.length !== 6) return json({ error: "invalid_code", message: "Enter the 6-digit code." }, 400);
 
   const t = now();
-  const row = await env.DB.prepare("SELECT code_hash, expires_at, attempts FROM login_codes WHERE email = ?").bind(email).first();
-  if (!row || row.expires_at < t || row.attempts >= MAX_ATTEMPTS) {
+  // One step takes a try and reads the code, so a burst of guesses sent at once can't all get in before the count moves.
+  const row = await env.DB.prepare("UPDATE login_codes SET attempts = attempts + 1 WHERE email = ? AND expires_at >= ? AND attempts < ? RETURNING code_hash, attempts")
+    .bind(email, t, MAX_ATTEMPTS).first();
+  if (!row) {
     return json({ error: "code_expired", message: "That code has expired. Request a new one." }, 400);
   }
-  // The reviewer's code never changes, so asking for a new one must not buy more guesses:
-  // wrong tries on that account are capped per day, however many times a code is requested.
+  // Asking for a new code must not buy more guesses: wrong tries are capped per day for every address,
+  // however many codes are requested. (The reviewer's code never changes, so it has its own count.)
   const review = env.REVIEW_EMAIL && email === normalizeEmail(env.REVIEW_EMAIL);
-  if (review) {
-    const w = await env.DB.prepare("SELECT count, window_start FROM rate_limits WHERE key = 'review-wrong'").first();
-    if (w && w.window_start >= t - 86400 && w.count >= REVIEW_WRONG_PER_DAY)
-      return json({ error: "code_expired", message: "Too many wrong tries today. Try again tomorrow." }, 400);
-  }
+  const wrongKey = review ? "review-wrong" : `wrong:${email}`, wrongMax = review ? REVIEW_WRONG_PER_DAY : WRONG_PER_DAY;
+  const w = await env.DB.prepare("SELECT count, window_start FROM rate_limits WHERE key = ?").bind(wrongKey).first();
+  if (w && w.window_start >= t - 86400 && w.count >= wrongMax)
+    return json({ error: "code_expired", message: review ? "Too many wrong tries today. Try again tomorrow." : "Too many wrong tries today. Use the link in the email, or try again tomorrow." }, 400);
   const candidate = await sha256(`${env.AUTH_SECRET}:${email}:${code}`);
   if (!timingSafeEqual(candidate, row.code_hash)) {
-    if (review) await allow(env, "review-wrong", REVIEW_WRONG_PER_DAY, 86400);
-    await env.DB.prepare("UPDATE login_codes SET attempts = attempts + 1 WHERE email = ?").bind(email).run();
-    const left = MAX_ATTEMPTS - row.attempts - 1;
+    await allow(env, wrongKey, wrongMax, 86400);
+    const left = MAX_ATTEMPTS - row.attempts;
     return json({ error: "wrong_code", message: left > 0 ? `Wrong code. ${left} tries left.` : "Too many wrong tries. Request a new code." }, 400);
   }
 
@@ -571,7 +579,8 @@ async function overview(env, me) {
     recent: recent.results.filter((d) => !blocked.has(d.poster_id)).map((d) => hideScores(d, me, scoredSet)),
     to_score: toScore.results.filter((d) => !blocked.has(d.poster_id)), scorecard: null,
     nudges: { locked_open: [], look_back: [], to_confirm: [] } });
-  return json({ totals: t, members: members.n, recent: recent.results.filter((d) => !blocked.has(d.poster_id)).map((d) => hideScores(d, me, scoredSet)),
+  // the group's dollar totals are for cleared accounts (I16)
+  return json({ totals: cleared(me) ? t : { ...t, invested_cents: 0, realized_cents: 0, paper_cents: 0 }, members: members.n, recent: recent.results.filter((d) => !blocked.has(d.poster_id)).map((d) => hideScores(d, me, scoredSet)),
     to_score: toScore.results.filter((d) => !blocked.has(d.poster_id)), scorecard,
     nudges: { locked_open: lockedOpen.results, look_back: lookBack.results, to_confirm: toConfirm.results } });
 }
@@ -617,9 +626,9 @@ async function updatePhoto(request, env, me) {
   return json({ ok: true, photo_at: u.photo_at });
 }
 
-async function getPhoto(env, id) {
-  const u = await env.DB.prepare("SELECT photo FROM users WHERE id = ? AND status = 'active'").bind(id).first();
-  if (!u || !u.photo) throw new HttpError(404, "not_found", "No photo.");
+async function getPhoto(env, id, me) {
+  const u = await env.DB.prepare("SELECT photo, demo FROM users WHERE id = ? AND status = 'active'").bind(id).first();
+  if (!u || !u.photo || (me.role !== "admin" && !!u.demo !== !!me.demo)) throw new HttpError(404, "not_found", "No photo.");
   const [, type, b64] = u.photo.match(/^data:(image\/[a-z]+);base64,(.+)$/);
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   return new Response(bytes, { headers: { "Content-Type": type, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" } });
@@ -627,7 +636,9 @@ async function getPhoto(env, id) {
 
 async function getMember(env, id, me) {
   const { results } = await env.DB.prepare(MEMBERS_SQL + " AND u.id = ?").bind(now() - 30 * 86400, id).all();
-  if (!results.length || (results[0].role === "observer" && me.role !== "admin" && !(results[0].demo && me.demo))) throw new HttpError(404, "not_found", "Member not found.");
+  // Observers have no member page, and the App Review demo and real members never see each other, by direct link too. Admins see everyone.
+  const m0 = results[0];
+  if (!m0 || (me.role !== "admin" && (!!m0.demo !== !!me.demo || (m0.role === "observer" && !m0.demo)))) throw new HttpError(404, "not_found", "Member not found.");
   const deals = (await env.DB.prepare(`SELECT d.id, d.company, d.one_liner, d.status, d.created_at FROM deals d WHERE d.poster_id = ? AND ${fitsSql(me)} ORDER BY d.created_at DESC LIMIT 20`).bind(id).all()).results;
   // What they actually back, learned from every yes or no on other members' deals
   const calls = (await env.DB.prepare(`SELECT s.yes, d.sector, d.round_type, d.min_tier FROM scores s JOIN deals d ON d.id = s.deal_id
@@ -639,7 +650,7 @@ async function getMember(env, id, me) {
   };
   const taste = { calls: calls.length, yes: calls.filter((c) => c.yes).length, sectors: tally("sector"), rounds: tally("round_type") };
   const blocked = (await blockedIds(env, me)).has(id);
-  return json({ member: me.role === "admin" ? results[0] : hideEmail(results[0], me), deals: cleared(me) || id === me.id ? deals : [], taste, blocked });
+  return json({ member: me.role === "admin" ? results[0] : noMoney(hideEmail(results[0], me), me), deals: cleared(me) || id === me.id ? deals : [], taste, blocked });
 }
 
 const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.role, u.demo, u.network, u.created_at, u.last_login,
@@ -664,6 +675,9 @@ const MEMBERS_SQL = `SELECT u.id, u.email, COALESCE(u.name, u.email) AS name, u.
 
 // Anyone can join, so members see each other's names, not email addresses (admins and the person themselves still do).
 const hideEmail = (u, me) => (u.id === me.id ? u : { ...u, email: "" });
+// Dollar figures about other members are for cleared accounts (I16): until then a new account sees who is here,
+// not what anyone has put in or the checks they write. Everyone sees their own.
+const noMoney = (u, me) => (u.id === me.id || cleared(me) ? u : { ...u, invested_cents: 0, investments: 0, tier: null, check_size: null });
 
 async function listMembers(env, me) {
   const since = now() - 30 * 86400;
@@ -671,7 +685,7 @@ async function listMembers(env, me) {
   // the App Review demo sees only the made-up members, and nobody else sees them
   const results = all.filter((u) => !!u.demo === !!(me && me.demo));
   const observers = results.filter((u) => u.role === "observer");
-  const shown = me && me.role === "admin" ? results : results.filter((u) => u.role !== "observer").map((u) => hideEmail(u, me));
+  const shown = me && me.role === "admin" ? results : results.filter((u) => u.role !== "observer").map((u) => noMoney(hideEmail(u, me), me));
   return json({ members: shown, observers: observers.map((u) => ({ id: u.id, name: u.name })) });
 }
 
@@ -784,6 +798,7 @@ async function huntAction(request, env, me, id, action) {
       await env.DB.prepare("DELETE FROM hunt_invites WHERE hunt = ? AND email = ? AND invited_by = ?").bind(id, email, me.id).run();
       return json({ ok: true });
     }
+    if (!(await allow(env, `invite:${me.id}`, INVITES_PER_DAY, 86400))) throw new HttpError(429, "rate_limited", "That's a lot of invites for one day. Send the rest tomorrow.");
     const them = await env.DB.prepare("SELECT id, name, role FROM users WHERE email = ? AND status = 'active'").bind(email).first();
     if (them && them.role === "observer") bad("Observers can't join hunts.");
     if (them && await env.DB.prepare("SELECT 1 FROM memberships WHERE person = ? AND hunt = ?").bind(them.id, id).first()) bad("They're already in this hunt.");
@@ -878,6 +893,8 @@ async function applyFounder(request, env) {
   if (b.meets_standard !== true) bad("Confirm the company meets our standard.");
   const dup = await env.DB.prepare("SELECT 1 FROM applications WHERE founder_email = ? AND lower(company) = lower(?) AND created_at > ?").bind(a.founder_email, a.company, now() - 30 * 86400).first();
   if (dup) return json({ ok: true });                             // already have it
+  // Each address gets at most two receipts a day, so the form can't be used to send mail to someone over and over.
+  if (!(await allow(env, `apply-to:${a.founder_email}`, 2, 86400))) return json({ error: "rate_limited", message: "We already have applications from this email today. Try again tomorrow." }, 429);
   await insertRow(env, "applications", { id: crypto.randomUUID(), ...a, created_at: now() }).run();
   await sendMail(env, a.founder_email, `We got your application: ${a.company}`,
     `Hi ${a.founder_name.split(" ")[0]},\n\nStag Hunt's members can now see your application for ${a.company}. If one of them wants to talk, they'll email you directly.\n\nIf you don't hear back, it doesn't mean the company is bad. Members only take calls that fit what they invest in. Stag Hunt itself doesn't invest. Each member decides alone, with their own money.\n\nStag Hunt`,
@@ -890,21 +907,25 @@ async function applyFounder(request, env) {
 }
 
 const APP_SQL = `SELECT a.*, COALESCE(u.name, u.email) AS claimer_name FROM applications a LEFT JOIN users u ON u.id = a.claimed_by`;
+// Founders apply to Stag Hunt, not to one hunt, so an application reaches every cleared member whose check size
+// fits it (I16), and whoever took the call. The App Review demo sees none. Admins can open any, to remove spam.
+const seesApp = (me, a) => a.claimed_by === me.id || (!me.demo && cleared(me) && (seesAll(me) || a.min_tier == null || a.min_tier <= me.tier));
 async function listInbound(env, me) {
   const { results } = await env.DB.prepare(APP_SQL + " WHERE a.status IN ('open','claimed') ORDER BY a.created_at DESC").all();
-  // Each application reaches the members whose check size fits it, like deals do
-  const mine = results.filter((a) => a.claimed_by === me.id || fits(me, { min_tier: a.min_tier, poster_id: null }));
+  const mine = results.filter((a) => seesApp(me, a));
   return json({ applications: mine.map(({ founder_email, ...x }) => x) });
 }
 async function getApplication(env, me, id) {
   const a = await env.DB.prepare(APP_SQL + " WHERE a.id = ?").bind(id).first();
-  if (!a) throw new HttpError(404, "not_found", "Application not found.");
+  if (!a || (!seesApp(me, a) && me.role !== "admin")) throw new HttpError(404, "not_found", "Application not found.");
   const mine = a.claimed_by === me.id;
   if (!mine && me.role !== "admin") delete a.founder_email;   // one member reaches out, not twelve
   if (a.interview_id) a.interview = (await env.DB.prepare("SELECT transcript, duration_secs FROM interviews WHERE id = ?").bind(a.interview_id).first()) || null;
   return json({ application: a, mine });
 }
 async function claimApplication(env, me, id, action) {
+  const a = await env.DB.prepare("SELECT claimed_by, min_tier FROM applications WHERE id = ?").bind(id).first();
+  if (!a || (!seesApp(me, a) && me.role !== "admin")) throw new HttpError(404, "not_found", "Application not found.");
   const r = action === "claim"
     ? await env.DB.prepare("UPDATE applications SET status = 'claimed', claimed_by = ?, claimed_at = ? WHERE id = ? AND status = 'open'").bind(me.id, now(), id).run()
     : await env.DB.prepare("UPDATE applications SET status = 'open', claimed_by = NULL, claimed_at = NULL WHERE id = ? AND status = 'claimed' AND (claimed_by = ? OR ? = 'admin')").bind(id, me.id, me.role).run();
@@ -1188,6 +1209,8 @@ async function createDeal(request, env, me, ctx) {
   const mine = (await env.DB.prepare("SELECT hunt FROM memberships WHERE person = ? ORDER BY joined_at, hunt").bind(me.id).all()).results.map((r) => r.hunt);
   const home = mine.includes(b.home_hunt) ? b.home_hunt : mine.length === 1 ? mine[0] : null;
   if (!home) bad(mine.length ? "Choose which hunt this deal is for." : "Start or join a hunt before sharing a deal.");
+  // A day's ceiling per account, so nobody can flood the hunt's inboxes with new-deal emails.
+  if (!(await allow(env, `deals:${me.id}`, DEALS_PER_DAY, 86400))) throw new HttpError(429, "rate_limited", `You've shared ${DEALS_PER_DAY} deals today. Share the next one tomorrow.`);
   const id = crypto.randomUUID(), t = now();
   const row = { id, poster_id: me.id, home_hunt: home, ...f, from_recording: fromRec, application_id: appId, status: "reviewing", created_at: t, updated_at: t };
   await env.DB.batch([
@@ -1198,8 +1221,11 @@ async function createDeal(request, env, me, ctx) {
   await recordCall(env, id, me.id);
   if (fromRec) await deleteRecording(env, me, recId); // the transcript goes once the deal is posted
   const name = me.name || me.email;
-  const inHome = (await env.DB.prepare("SELECT person FROM memberships WHERE hunt = ?").bind(home).all()).results.map((r) => r.person);
-  await notify(env, { type: "deal_posted", deal: { id, company: f.company, one_liner: f.one_liner, poster: name } }, inHome);   // only the deal's hunt hears about it
+  // The live notice follows the same rule as the new-deal email (I16): the deal's hunt, cleared, at this check size,
+  // and not anyone who blocked the bringer. The bringer's own open apps hear it too.
+  const inHome = (await env.DB.prepare(`SELECT id FROM users WHERE status = 'active' AND (id = ?1 OR ((tier IS NULL OR ?2 IS NULL OR tier >= ?2) AND ${clearedSql()}
+    AND id IN (SELECT person FROM memberships WHERE hunt = ?3) AND id NOT IN (SELECT user_id FROM blocks WHERE blocked_id = ?1)))`).bind(me.id, f.min_tier, home).all()).results.map((r) => r.id);
+  await notify(env, { type: "deal_posted", deal: { id, company: f.company, one_liner: f.one_liner, poster: name } }, inHome);
   if (ctx) ctx.waitUntil(emailNewDeal(env, { id, company: f.company, one_liner: f.one_liner, round_type: f.round_type, min_tier: f.min_tier, poster: name, poster_id: me.id, home_hunt: home }));
   return json({ ok: true, id });
 }
@@ -1760,6 +1786,12 @@ function toBase64(buf) {
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
+// Each account's daily ceiling on the paid AI steps (transcribing and drafting), so a free account can't run up the bill.
+const AI_DAILY = { rec: 20, seg: 600, draft: 60 };
+async function aiBudget(env, me, what) {
+  if (!(await allow(env, `ai-${what}:${me.id}`, AI_DAILY[what], 86400)))
+    throw new HttpError(429, "rate_limited", "You've reached today's limit for recording and drafting. Try again tomorrow.");
+}
 async function myRecording(env, me, id) {
   const r = await env.DB.prepare("SELECT * FROM recordings WHERE id = ? AND member_id = ?").bind(id, me.id).first();
   if (!r) throw new HttpError(404, "not_found", "That recording is gone. Recordings are deleted after 7 days or once the deal is posted.");
@@ -1769,12 +1801,14 @@ async function startRecording(request, env, me) {
   if (!env.AI) throw new HttpError(503, "no_ai", "Recording isn't set up yet.");
   const b = await readJson(request);
   if (b.consent !== true) bad("Confirm the founder knows you're recording and agreed.");
+  await aiBudget(env, me, "rec");
   const id = crypto.randomUUID(), t = now();
   await env.DB.prepare("INSERT INTO recordings (id, member_id, consent_at, created_at) VALUES (?, ?, ?, ?)").bind(id, me.id, t, t).run();
   return json({ id });
 }
 async function addSegment(request, env, me, id, n) {
   await myRecording(env, me, id);
+  await aiBudget(env, me, "seg");
   return saveSegment(request, env, id, n, REC_MAX_SEGMENTS);
 }
 async function saveSegment(request, env, id, n, max) {
@@ -1805,6 +1839,7 @@ async function recTranscript(env, me, id) {
   const { results } = await env.DB.prepare("SELECT text FROM rec_segments WHERE rec_id = ? ORDER BY n").bind(id).all();
   const transcript = results.map((s) => s.text).filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
   if (transcript.length < 80) bad("We didn't catch enough of the conversation to draft anything. You can still fill in the deal by hand.");
+  await aiBudget(env, me, "draft");
   return transcript;
 }
 const REC_LIMIT = 60000; // the model reads about 24k tokens
@@ -1906,6 +1941,8 @@ async function addPitchSegment(request, env, link, n) {
   const r = await pitchByLink(env, link);
   if (r.done_at) bad("You've already sent your pitch.");
   if (!r.consent_at) bad("Agree to be recorded to start.");
+  // A link allows six takes a day (startPitch), so this is the most audio it can ever need.
+  if (!(await allow(env, `pitch-seg:${r.id}`, PITCH_MAX_SEGMENTS * 6, 86400))) bad("This link has recorded as much as it can today. Try again tomorrow.");
   return saveSegment(request, env, r.id, n, PITCH_MAX_SEGMENTS);
 }
 async function finishPitch(env, ctx, link) {
@@ -2021,6 +2058,7 @@ async function finishInterview(request, env, id) {
     await env.DB.prepare("UPDATE interviews SET duration_secs = ?, cost_usd = ? WHERE id = ?").bind(secs, cost, id).run();
     bad("We didn't hear enough to fill in your application. You can try again, or use the form.");
   }
+  if (!(await allow(env, `iv-draft:${id}`, 3, 86400))) bad("We couldn't fill in your application from the interview. Please use the form.");
   const fields = await draftApplication(env, transcript, {
     llama: () => extractFields(env, transcript, APPLY_FIELDS, APPLY_SYSTEM),
     clean: (f) => keepSaid(f, APPLY_FIELDS),
@@ -2030,9 +2068,9 @@ async function finishInterview(request, env, id) {
   return json({ fields });
 }
 // Members listen through the site; the recording itself stays with ElevenLabs.
-async function interviewAudio(env, appId) {
-  const row = await env.DB.prepare("SELECT i.conversation_id FROM applications a JOIN interviews i ON i.id = a.interview_id WHERE a.id = ?").bind(appId).first();
-  if (!row?.conversation_id || !env.ELEVENLABS_API_KEY) throw new HttpError(404, "not_found", "No recording for this application.");
+async function interviewAudio(env, me, appId) {
+  const row = await env.DB.prepare("SELECT i.conversation_id, a.claimed_by, a.min_tier FROM applications a JOIN interviews i ON i.id = a.interview_id WHERE a.id = ?").bind(appId).first();
+  if (!row?.conversation_id || !env.ELEVENLABS_API_KEY || (!seesApp(me, row) && me.role !== "admin")) throw new HttpError(404, "not_found", "No recording for this application.");
   const r = await elFetch(env, `/conversations/${row.conversation_id}/audio`);
   if (!r.ok) throw new HttpError(404, "not_found", "The recording isn't available.");
   return new Response(r.body, { headers: { "Content-Type": r.headers.get("Content-Type") || "audio/mpeg", "Cache-Control": "private, max-age=3600" } });
@@ -2360,7 +2398,10 @@ async function myHistory(env, me, format = "json") {
       FROM investments WHERE member_id != ?1`).bind(me.id).first(),
   ]);
   if (format === "csv") return historyCsv(deals);
-  return json({ joined: me.created_at, deals, group: { ...calls, ...sourced, multiple: backing.invested ? backing.worth / backing.invested : null } });
+  // The App Review demo gets no real numbers, and the group's money figure is for cleared accounts (I16).
+  const group = me.demo ? { n: 0, yes_rate: null, days: null, known: 0, good_rate: null, member_yes: null, went_well: null, multiple: null }
+    : { ...calls, ...sourced, multiple: cleared(me) && backing.invested ? backing.worth / backing.invested : null };
+  return json({ joined: me.created_at, deals, group });
 }
 
 // A track record you choose to share: every call is dated and locked before anyone knows the outcome.
@@ -2387,6 +2428,7 @@ async function publicTrack(env, token) {
 
 // Personal key: shown once, stored only as a hash, and a new one replaces the old
 async function makeApiKey(env, me) {
+  if (!(await allow(env, `api-key:${me.id}`, 10, 86400))) throw new HttpError(429, "rate_limited", "You've made several keys today. Try again tomorrow.");
   const key = "shk_" + randomToken();
   await env.DB.prepare(`INSERT INTO api_keys (user_id, key_hash, last4, created_at) VALUES (?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET key_hash = excluded.key_hash, last4 = excluded.last4, created_at = excluded.created_at, last_used_at = NULL`)
@@ -2484,6 +2526,7 @@ const SAMPLE_WEEK = {
 
 // "Send me a test": both automated emails, to the signed-in person only
 async function sendTestEmails(env, me, sample = false) {
+  if (!(await allow(env, `test-mail:${me.id}`, 10, 86400))) throw new HttpError(429, "rate_limited", "That's enough test emails for today. Try again tomorrow.");
   const t = now(), weekAgo = t - 7 * 86400;
   const monthStart = Math.floor(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1) / 1000);
   const [latest, newDeals, contributors, inbound] = await Promise.all([
