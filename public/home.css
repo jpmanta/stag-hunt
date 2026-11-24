@@ -661,6 +661,8 @@ body.learnpage main :is(p,li,dd,td) :is(b,strong){font-weight:600!important}
    Page title: same size on every page. Section heading: same size on every page. */
 .learnpage .group-solo p.crest + h2{font-family:var(--serif)!important;font-size:clamp(44px,6vw,72px)!important;font-weight:500!important;letter-spacing:-.015em;line-height:1.1;margin:0 0 4px!important;text-wrap:balance}
 .learnpage .group-solo p.crest + h2::after{content:"";display:block;width:56px;height:1px;background:var(--gold-line);margin:22px auto 4px}
+/* The Group's title arrives like every other page title. Its heading is an h2 inside the first section, so the title rule in style.css (motion) misses it. */
+@media (prefers-reduced-motion:no-preference){.learnpage .group-solo p.crest + h2{animation:riseslow .9s var(--ease-out) both}}
 .learnpage .article.chapter > .sec:not(:first-child) h2,
 .learnpage .group-solo .cohortlook > h2,
 .learnpage .group-solo .clrow .cl-h,
