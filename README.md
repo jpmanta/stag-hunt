@@ -52,6 +52,6 @@ Please report it privately through the [contact form](https://staghunts.com/cont
 
 MIT. Use it, copy it, change it. See [LICENSE](LICENSE).
 
-One exception: the two How it works videos (`public/learn/how-it-works/*.mp4`) are narrated in Jonathan Manta's voice. They are not under the MIT license. All rights reserved.
+One exception: the videos in `public/learn/how-it-works/` (`*.mp4`: the two How it works videos and the investor walkthrough) are narrated in Jonathan Manta's voice. They are not under the MIT license. All rights reserved.
 
 Stag Hunt is not a fund, a broker or investment advice.
