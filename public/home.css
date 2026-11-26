@@ -840,3 +840,15 @@ main.narrow{position:relative}
 .applypage .talk .talkrow{margin-top:18px}
 body.learnpage main.applypage .talk .talkrow+.ahint{margin:22px auto 0!important;max-width:540px!important;text-align:center!important;text-wrap:balance}
 body.learnpage main.applypage .aprep.talk{padding-bottom:26px!important}
+
+/* Comparison table, trimmed (Nov 26): stays inside the reading column, four short columns, more air */
+.cmpwrap,main:has(.marg) .cmpwrap{position:static;left:auto;transform:none;width:auto;margin:28px 0 12px;overflow-x:auto;border-top:0;border-bottom:0}
+.cmp{min-width:0}
+.cmp th,.cmp td{padding:16px 14px 16px 0}
+body.learnpage main .cmp thead th{padding-bottom:12px;border-bottom:1px solid var(--line)}
+body.learnpage main .cmp tbody th{width:auto;white-space:nowrap;padding-right:24px}
+body.learnpage main .cmp td{font-size:15px!important}
+.cmp tr.us th,.cmp tr.us td{background:none!important}
+.cmp tr.us th:first-child{box-shadow:inset 3px 0 0 var(--oak);padding-left:12px}
+.cmp tbody th{padding-left:12px}
+@media(max-width:700px){.cmp{min-width:560px}body.learnpage main .cmp tbody th{white-space:normal}}
