@@ -779,3 +779,6 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
   .startcard .steps li:nth-child(2){animation-delay:.08s}
   .startcard .steps li:nth-child(3){animation-delay:.16s}
 }
+
+/* Nov 26: the investor walkthrough video on Home, for new members */
+.wtvid{padding:4px 18px 14px}.wtvid video{display:block;width:100%;max-width:560px;aspect-ratio:16/9;background:#F9F7F2;border:1px solid var(--line);border-radius:var(--r)}.wtvid p{margin:8px 0 0}
