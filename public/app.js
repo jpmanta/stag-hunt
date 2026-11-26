@@ -1214,7 +1214,7 @@ async function viewHunt(id, seq) {
   const lead = hunt.role === "lead";
   $("#view").innerHTML = `
     <div class="pagehead"><div><h1>${esc(hunt.name)}</h1><div class="small muted"><a href="#/hunts">Hunts</a> · ${members.length} member${members.length === 1 ? "" : "s"} · <a href="#/deals?hunt=${hunt.id}">${hunt.deals} deal${hunt.deals === 1 ? "" : "s"}</a></div></div>
-      <div class="row">${lead ? '<button class="btn ghost sm" id="rename">Rename</button>' : ""}<button class="btn ghost sm" id="leave">Leave</button></div></div>
+      <div class="row hunt-acts">${lead ? '<button class="btn ghost sm" id="rename">Rename</button>' : ""}<button class="btn ghost sm" id="leave">Leave</button></div></div>
     <div class="two">
       <div class="panel"><div class="ph"><h3>Members</h3></div><div class="list">${members.map((m) => `
         <a href="#/members/${m.id}">${avatar(m.name, m.id)}<span class="grow"><b>${esc(m.name)}</b> ${m.role === "lead" ? '<span class="pill">Lead</span>' : ""}${m.headline ? `<div class="small faint">${esc(m.headline)}</div>` : ""}</span>
