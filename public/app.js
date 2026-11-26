@@ -1538,18 +1538,22 @@ const HELP = [
   { q: "Something's wrong with a deal or a member", a: "Use the Report link next to any deal, call, update or member. It emails the admins. You can also block a member from their page; you stop seeing what they post." },
 ];
 async function viewHelp() {
-  $("#view").innerHTML = `
-    <div class="pagehead"><div><h1>Need help?</h1><p class="muted" style="margin:4px 0 0">Quick answers. Show me takes you to the spot.</p></div></div>
-    <div class="panel helpbox"><div class="pb">
-      <input type="search" id="helpq" placeholder="Search, like invest or check size" aria-label="Search help" autocomplete="off">
-      <div class="helplist">${HELP.map((h, i) => `<details class="helpq" data-i="${i}"><summary>${esc(h.q)}</summary><p>${esc(h.a)}</p>${h.go ? `<button class="btn sm ghost" type="button" data-showme="${i}">${esc(h.btn)} →</button>` : ""}</details>`).join("")}</div>
-      <p class="small muted helpnone" hidden>Nothing matches. Try another word, or <a href="/contact/">contact support</a>.</p>
-    </div></div>
-    <p class="small muted">Prefer to watch? <a href="/learn/how-it-works/walkthrough-investors.mp4" target="_blank" rel="noopener">The walkthrough video</a> · Still stuck? <a href="/contact/">Contact support</a></p>`;
+  const groups = [["Getting in", [0, 7, 8]], ["Deals", [1, 2, 3, 4]], ["Sharing and hunts", [5, 6]], ["Your account", [9, 10]]];
+  const row = (i) => { const h = HELP[i]; return `<details class="helpq" data-i="${i}"><summary><span>${esc(h.q)}</span><i aria-hidden="true"></i></summary><div class="helpa"><p>${esc(h.a)}</p>${h.go ? `<button class="btn sm ghost" type="button" data-showme="${i}">${esc(h.btn)} →</button>` : ""}</div></details>`; };
+  $("#view").innerHTML = `<div class="helpwrap">
+    <div class="helphead"><h1>Need help?</h1><p class="muted">Quick answers to the usual questions. Show me takes you to the spot.</p>
+      <div class="helpsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input type="search" id="helpq" placeholder="Search help, like invest" aria-label="Search help" autocomplete="off"></div></div>
+    ${groups.map(([t, ids]) => `<section class="helpgroup"><div class="helplabel">${t}</div><div class="panel helplist">${ids.map(row).join("")}</div></section>`).join("")}
+    <p class="small muted helpnone" hidden>Nothing matches. Try another word, or <a href="/contact/">contact support</a>.</p>
+    <div class="helpmore">
+      <a class="panel" href="/learn/how-it-works/walkthrough-investors.mp4" target="_blank" rel="noopener"><b>Prefer to watch?</b><span>A short walkthrough of the whole app.</span></a>
+      <a class="panel" href="/contact/"><b>Still stuck?</b><span>Send us a note through Contact support.</span></a>
+    </div></div>`;
   const q = $("#helpq"), items = $$(".helpq");
   q.addEventListener("input", () => {
     const words = q.value.toLowerCase().split(/\s+/).filter(Boolean); let shown = 0;
-    items.forEach((d) => { const h = HELP[d.dataset.i], t = (h.q + " " + h.a).toLowerCase(); const ok = words.every((w) => t.includes(w)); d.hidden = !ok; if (ok) shown++; if (words.length && ok && shown === 1) d.open = true; });
+    items.forEach((d) => { const h = HELP[d.dataset.i], t = (h.q + " " + h.a).toLowerCase(); const ok = words.every((w) => t.includes(w)); d.hidden = !ok; if (ok) shown++; if (words.length) d.open = ok && shown === 1; });
+    $$(".helpgroup").forEach((g) => (g.hidden = !$$(".helpq", g).some((d) => !d.hidden)));
     $(".helpnone").hidden = shown > 0;
   });
   $$("[data-showme]").forEach((b) => (b.onclick = () => showMe(HELP[b.dataset.showme])));

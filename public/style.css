@@ -784,15 +784,33 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 .wtvid{padding:4px 18px 14px}.wtvid video{display:block;width:100%;max-width:560px;aspect-ratio:16/9;background:#F9F7F2;border:1px solid var(--line);border-radius:var(--r)}.wtvid p{margin:8px 0 0}
 
 /* Nov 26: Help page and Show me pointer */
-.helpbox input[type=search]{width:100%;margin:0 0 6px}
-.helpq{border-top:1px solid var(--line);padding:2px 0}
+.helpwrap{max-width:720px}
+.helphead h1{font-size:40px;margin:8px 0 4px}
+.helphead p{margin:0 0 22px}
+.helpsearch{display:flex;align-items:center;gap:10px;background:var(--panel,#fff);border:1px solid var(--line);border-radius:12px;padding:0 16px;margin:0 0 30px;transition:border-color .2s}
+.helpsearch:focus-within{border-color:var(--fg)}
+.helpsearch svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linecap:round}
+.helpsearch input{flex:1;min-width:0;max-width:none!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:15px 0!important;margin:0!important;width:100%;font-size:16px;outline:none}
+.helpgroup{margin:0 0 26px}
+.helplabel{font:600 11.5px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px 4px}
+.helplist{padding:0 20px;margin:0}
+.helpq{border-top:1px solid var(--line)}
 .helpq:first-child{border-top:0}
-.helpq summary{cursor:pointer;padding:13px 0;font-weight:500;list-style:none;display:flex;justify-content:space-between;gap:12px}
+.helpq summary{cursor:pointer;padding:17px 0;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:15.5px;font-weight:500;color:var(--fg)}
 .helpq summary::-webkit-details-marker{display:none}
-.helpq summary::after{content:"+";color:var(--muted);font-weight:400}
-.helpq[open] summary::after{content:"−"}
-.helpq p{margin:0 0 12px;color:var(--muted);line-height:1.55}
-.helpq .btn{margin:0 0 14px}
+.helpq summary i{flex:none;width:8px;height:8px;border:solid var(--muted);border-width:0 1.6px 1.6px 0;transform:rotate(45deg) translate(-2px,-2px);transition:transform .25s var(--ease,ease)}
+.helpq[open] summary i{transform:rotate(-135deg) translate(-2px,-2px)}
+.helpq summary:hover span{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+.helpa{padding:0 0 18px;max-width:600px}
+.helpa p{margin:0 0 14px;color:var(--muted);line-height:1.6;font-size:15px}
+.helpa .btn{margin:0}
+.helpnone{margin:0 0 26px 4px}
+.helpmore{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0 10px}
+.helpmore a{display:block;padding:18px 20px;text-decoration:none;color:inherit;margin:0;transition:border-color .2s}
+.helpmore a:hover{border-color:var(--fg)}
+.helpmore b{display:block;font:500 20px/1.2 var(--serif);color:var(--fg);margin:0 0 4px}
+.helpmore span{font-size:14px;color:var(--muted)}
+@media (max-width:600px){.helphead h1{font-size:32px}.helpmore{grid-template-columns:1fr}.helplist{padding:0 16px}}
 .hl-pulse{outline:2px solid var(--accent,#B39556);outline-offset:4px;border-radius:6px;animation:hlp 1.4s ease-in-out 3}
 @keyframes hlp{0%,100%{outline-color:var(--accent,#B39556)}50%{outline-color:transparent}}
 @media (prefers-reduced-motion:reduce){.hl-pulse{animation:none}}
