@@ -717,7 +717,7 @@ async function viewDeal(id, seq) {
         ${state.me.role === "observer" ? "" : `<div class="panel"><div class="ph"><h3>Meet the team</h3>${intros.count ? `<span class="small muted">${intros.count} asked</span>` : ""}</div><div class="pb">
           ${brought ? (intros.who.length ? `<div class="who">${intros.who.map((w) => `<div class="w row between"><b>${esc(w.name)}</b><span class="small faint">${ago(w.at)}</span></div>`).join("")}</div><p class="small muted" style="margin:10px 0 0">Each request came to you by email with their address. Reply to connect them.</p>`
             : '<p class="small muted" style="margin:0">When members ask to meet the founders, you get an email and they show up here. You stay the point of contact.</p>')
-          : intros.mine ? `<p class="small" style="margin:0">You asked ${first} for an introduction. ${first} has your email address and will connect you.</p>`
+          : intros.mine ? `<p class="small" style="margin:0">You asked ${first} for an introduction. ${first} has your email address and may connect you.</p>`
           : `<p class="small muted" style="margin-top:0">${first} knows the founders and stays the point of contact. Asking sends ${first} your email address.</p><button class="btn ghost block" type="button" id="askintro">Ask ${first} for an intro</button>`}
         </div></div>`}
         ${huntPanel(d, pl, myInv)}
@@ -749,7 +749,7 @@ async function viewDeal(id, seq) {
 
   $("#askintro")?.addEventListener("click", async (e) => {
     e.target.disabled = true;
-    try { await api(`/api/deals/${d.id}/intro`, {}); toast(`Sent. ${firstName(d.poster_name)} will be in touch.`); await viewDeal(d.id); }
+    try { await api(`/api/deals/${d.id}/intro`, {}); toast(`Sent. ${firstName(d.poster_name)} may be in touch.`); await viewDeal(d.id); }
     catch (err) { e.target.disabled = false; toast(err.message); }
   });
   $("#sharedeal").onclick = async () => {
