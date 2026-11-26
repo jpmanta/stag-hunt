@@ -796,3 +796,4 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 .hl-pulse{outline:2px solid var(--accent,#B39556);outline-offset:4px;border-radius:6px;animation:hlp 1.4s ease-in-out 3}
 @keyframes hlp{0%,100%{outline-color:var(--accent,#B39556)}50%{outline-color:transparent}}
 @media (prefers-reduced-motion:reduce){.hl-pulse{animation:none}}
+.helplink{color:var(--muted);text-decoration:underline;text-underline-offset:3px}.helplink:hover{color:var(--fg)}

@@ -181,7 +181,7 @@ function renderNav() {
   const cur = currentPath();
   const items = [
     ["#/", "home", "Home"], ["#/deals", "deals", "Deals"], ["#/deals/new", "plus", "Share a deal"], ["#/inbound", "inbox", "Applications"],
-    "-", ["#/history", "chart", "Your record"], ["#/members", "members", "Members"], ["#/hunts", "hunts", "Hunts"], ["#/help", "help", "Help"],
+    "-", ["#/history", "chart", "Your record"], ["#/members", "members", "Members"], ["#/hunts", "hunts", "Hunts"],
   ];
   if (state.me.role === "admin") items.push(["#/admin", "admin", "Admin"]);
   $("#nav").innerHTML = items.map((it) => {
@@ -189,7 +189,7 @@ function renderNav() {
     const [href, ic, label] = it;
     const on = href === "#/" ? cur === "#/" || cur === "" : href === "#/deals" ? onDeals(cur) : cur.startsWith(href);
     return `<a href="${href}" class="${on ? "on" : ""}">${icon(ic)}${label}</a>`;
-  }).join("") + `<a href="#/profile" class="nav-profile ${cur.startsWith("#/profile") ? "on" : ""}">${icon("user")}Profile</a>`;
+  }).join("") + `<div class="sep"></div><a href="#/help" class="nav-help ${cur.startsWith("#/help") ? "on" : ""}">${icon("help")}Help</a><a href="#/profile" class="nav-profile ${cur.startsWith("#/profile") ? "on" : ""}">${icon("user")}Profile</a>`;
   renderTabbar();
 }
 function renderTabbar() {
@@ -318,7 +318,7 @@ async function viewHome(_, seq) {
     step(!!me.tier, "Your check size", me.tier ? "Done. You'll see deals that fit it." : "So you only see deals you could invest in.", '<a class="btn sm ghost" href="#/profile">Set it</a>'),
     step(dealsOpen(), "Deals open", dealsOpen() ? "You're in." : me.accredited === "none" ? "Deals are for accredited investors. You can still bring deals and start hunts." : `On ${dealsOpenOn()}. The 30-day wait keeps founders' rounds private.`),
   ] : [];
-  const startCard = starting ? `<div class="panel startcard"><div class="ph"><h3>Getting started</h3><span class="small muted">${steps.filter((x) => x.startsWith('<li class="done"')).length} of ${steps.length} done</span></div><div class="wtvid"><video controls preload="none" playsinline poster="/learn/how-it-works/walkthrough-investors.jpg" src="/learn/how-it-works/walkthrough-investors.mp4"><track kind="captions" srclang="en" label="English" src="/learn/how-it-works/walkthrough-investors.vtt"></video><p class="small muted">A short walkthrough of how to use Stag Hunt.</p></div><ol class="steps">${steps.join("")}</ol></div>` : "";
+  const startCard = starting ? `<div class="panel startcard"><div class="ph"><h3>Getting started</h3><span class="small muted"><a href="#/help" class="helplink">Need help?</a> · ${steps.filter((x) => x.startsWith('<li class="done"')).length} of ${steps.length} done</span></div><div class="wtvid"><video controls preload="none" playsinline poster="/learn/how-it-works/walkthrough-investors.jpg" src="/learn/how-it-works/walkthrough-investors.mp4"><track kind="captions" srclang="en" label="English" src="/learn/how-it-works/walkthrough-investors.vtt"></video><p class="small muted">A short walkthrough of how to use Stag Hunt.</p></div><ol class="steps">${steps.join("")}</ol></div>` : "";
   const nudges = [
     ...(n.locked_open || []).map((d) => `<div class="notice nudge"><b>You're locked in on ${esc(d.company)}.</b> <a href="#/deals/${d.id}#hunt">Log your investment</a> when it's done.</div>`),
     ...(n.look_back || []).map((d) => `<div class="notice nudge">It's been six months since <b>${esc(d.company)}</b>. <a href="#/deals/${d.id}#lookback">How did it turn out?</a></div>`),
@@ -707,7 +707,7 @@ async function viewDeal(id, seq) {
         : state.me.role === "observer" ? ""
         : brought ? `<div class="panel" id="score"><div class="ph"><h3>Your deal</h3></div><div class="pb"><div class="small muted">You brought it, so you don't make a call. Everyone else's calls stay independent of yours.</div></div></div>`
         : !["reviewing", "founder_call"].includes(d.status) ? `<div class="panel" id="score"><div class="ph"><h3>Calls are closed</h3></div><div class="pb"><div class="small muted">This deal has left review. Calls close then, so every call on the record was made before anyone knew how it turned out.</div></div></div>`
-        : `<div class="panel" id="score"><div class="ph"><h3>Want to meet the team?</h3></div><div class="pb">
+        : `<div class="panel" id="score"><div class="ph"><h3>Want to meet the team?</h3><a href="#/help" class="small helplink">How calls work</a></div><div class="pb">
           <form id="scoreform">${scorecardHtml()}<button class="btn block" type="submit">Submit my call</button><div class="msg err"></div></form></div></div>`}
 
         ${d.scores_hidden ? hiddenPanel("Everyone's calls") : ""}<div class="panel" ${d.scores_hidden ? "hidden" : ""}><div class="ph"><h3>Everyone's calls</h3>${scores.length ? `<span class="small muted">${d.yes_count} of ${scores.length} said yes${(() => { const m = scores.filter((s) => s.yes && s.met).length; return d.yes_count ? ` · ${m} of them met the team` : ""; })()}</span>` : ""}</div><div class="pb who">${scores.length ? scores.map((s) => `
