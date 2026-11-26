@@ -171,6 +171,7 @@ const ICONS = {
   inbox: '<path d="M4 13 6.5 5h11L20 13v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
   chart: '<path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6"/>',
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>`;
 
@@ -180,7 +181,7 @@ function renderNav() {
   const cur = currentPath();
   const items = [
     ["#/", "home", "Home"], ["#/deals", "deals", "Deals"], ["#/deals/new", "plus", "Share a deal"], ["#/inbound", "inbox", "Applications"],
-    "-", ["#/history", "chart", "Your record"], ["#/members", "members", "Members"], ["#/hunts", "hunts", "Hunts"],
+    "-", ["#/history", "chart", "Your record"], ["#/members", "members", "Members"], ["#/hunts", "hunts", "Hunts"], ["#/help", "help", "Help"],
   ];
   if (state.me.role === "admin") items.push(["#/admin", "admin", "Admin"]);
   $("#nav").innerHTML = items.map((it) => {
@@ -200,7 +201,7 @@ function renderTabbar() {
     t("#/deals", "deals", "Deals", onDeals(cur)) +
     `<a href="#/deals/new" class="share ${cur === "#/deals/new" ? "on" : ""}" aria-label="Share a deal"><span class="ic">${icon("plus")}</span><span>Share</span></a>` +
     t("#/members", "members", "Members", cur.startsWith("#/members")) +
-    `<button type="button" id="more" class="${/^#\/(inbound|admin|profile|history|hunts)/.test(cur) ? "on" : ""}">${icon("more")}<span>More</span></button>`;
+    `<button type="button" id="more" class="${/^#\/(inbound|admin|profile|history|hunts|help)/.test(cur) ? "on" : ""}">${icon("more")}<span>More</span></button>`;
   bar.querySelector("#more").onclick = () => $("#app").classList.toggle("menu");
   bar.querySelectorAll("a.on").forEach((a) => a.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" })));
 }
@@ -229,6 +230,7 @@ const routes = [
   [/^#\/admin$/, viewAdmin],
   [/^#\/profile$/, viewProfile],
   [/^#\/history$/, viewHistory],
+  [/^#\/help$/, viewHelp],
 ];
 let renderSeq = 0;
 let lastPath = null;
@@ -1518,6 +1520,52 @@ document.addEventListener("toggle", fitAll, true);   // textareas inside <detail
   new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => document.querySelectorAll("#view select").forEach(build), 40); })
     .observe(document.getElementById("view"), { childList: true, subtree: true });
 })();
+
+// ------------------------------------------------------------ help (Nov 26)
+// Short answers for investors who forget a step and don't want the video. "Show me" opens the page
+// and points at the thing to click. Every answer restates what the app does; no promises (Nov 24 rule).
+const HELP = [
+  { q: "Why can't I see any deals?", a: "Deals show to members who have made an investor statement saying they're accredited. New accounts see deals 30 days after the statement. You only see deals whose smallest check is at or below your check size, and only deals shared in a hunt you're in.", go: "#/profile", at: "[data-statement]", btn: "Show me my statement" },
+  { q: "How do I make a call on a deal?", a: "Open a deal from Home or Deals. Under Want to meet the team, pick Yes or No, say whether you've met the founders, and write one line on why. Then submit.", go: "#/deals", at: "tr[data-id], .list a, .empty .btn", btn: "Show me the deals" },
+  { q: "Can I change my call?", a: "No. A call locks once you submit it, so everyone's first read stays their own. You see the others' calls only after you make yours." },
+  { q: "How do I meet the founders?", a: "On the deal page, below your call, use the button that asks the member who brought the deal for an intro. That sends them your email address.", go: "#/deals", at: "tr[data-id], .list a", btn: "Show me the deals" },
+  { q: "How do I invest?", a: "If the company shared its own invest link, the deal page has an Invest button. You invest straight with the company. Stag Hunt never holds or moves money. If there's no button, ask the member who brought the deal." },
+  { q: "How do I share a deal?", a: "Click Share a deal. Fill in what the company does, where it is today, and the round. It goes to your hunt.", go: "#/deals/new", at: "#view form input, #view form textarea", btn: "Show me" },
+  { q: "What is a hunt?", a: "A group that shares deals. You start in the first hunt. You can start your own and invite people by email; joining and leaving are always each person's choice.", go: "#/hunts", at: "#huntform input[name=name]", btn: "Show me" },
+  { q: "How do I change my check size?", a: "In your profile, under How you invest. You see deals that take a check that size or smaller. Leave it empty to see every check size.", go: "#/profile", at: "#pf-tier", btn: "Show me" },
+  { q: "How do I change my emails?", a: "In your profile, under Sign-in and email, you choose whether to get new-deal emails and the Monday digest.", go: "#/profile", at: "#n-deals", btn: "Show me" },
+  { q: "What does Your record show?", a: "Every deal you bring, every call you make, and every check you log. When outcomes are known, it can show how your calls turned out.", go: "#/history", at: "#view h1", btn: "Show me" },
+  { q: "Something's wrong with a deal or a member", a: "Use the Report link next to any deal, call, update or member. It emails the admins. You can also block a member from their page; you stop seeing what they post." },
+];
+async function viewHelp() {
+  $("#view").innerHTML = `
+    <div class="pagehead"><div><h1>Need help?</h1><p class="muted" style="margin:4px 0 0">Quick answers. Show me takes you to the spot.</p></div></div>
+    <div class="panel helpbox"><div class="pb">
+      <input type="search" id="helpq" placeholder="Search, like invest or check size" aria-label="Search help" autocomplete="off">
+      <div class="helplist">${HELP.map((h, i) => `<details class="helpq" data-i="${i}"><summary>${esc(h.q)}</summary><p>${esc(h.a)}</p>${h.go ? `<button class="btn sm ghost" type="button" data-showme="${i}">${esc(h.btn)} →</button>` : ""}</details>`).join("")}</div>
+      <p class="small muted helpnone" hidden>Nothing matches. Try another word, or <a href="/contact/">contact support</a>.</p>
+    </div></div>
+    <p class="small muted">Prefer to watch? <a href="/learn/how-it-works/walkthrough-investors.mp4" target="_blank" rel="noopener">The walkthrough video</a> · Still stuck? <a href="/contact/">Contact support</a></p>`;
+  const q = $("#helpq"), items = $$(".helpq");
+  q.addEventListener("input", () => {
+    const words = q.value.toLowerCase().split(/\s+/).filter(Boolean); let shown = 0;
+    items.forEach((d) => { const h = HELP[d.dataset.i], t = (h.q + " " + h.a).toLowerCase(); const ok = words.every((w) => t.includes(w)); d.hidden = !ok; if (ok) shown++; if (words.length && ok && shown === 1) d.open = true; });
+    $(".helpnone").hidden = shown > 0;
+  });
+  $$("[data-showme]").forEach((b) => (b.onclick = () => showMe(HELP[b.dataset.showme])));
+}
+function showMe(h) {
+  location.hash = h.go;
+  let tries = 0;
+  const look = () => {
+    const el = h.at.split(",").map((s) => document.querySelector("#view " + s.trim().replace(/^#view /, ""))).find(Boolean);
+    if (!el) { if (++tries < 30) return setTimeout(look, 100); return; }
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.remove("hl-pulse"); void el.offsetWidth; el.classList.add("hl-pulse");
+    setTimeout(() => el.classList.remove("hl-pulse"), 4200);
+  };
+  setTimeout(look, 150);
+}
 
 // ------------------------------------------------------------ investor statement
 // Deals go only to people who say they're accredited and will keep deals confidential; accounts made

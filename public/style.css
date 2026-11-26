@@ -782,3 +782,17 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 
 /* Nov 26: the investor walkthrough video on Home, for new members */
 .wtvid{padding:4px 18px 14px}.wtvid video{display:block;width:100%;max-width:560px;aspect-ratio:16/9;background:#F9F7F2;border:1px solid var(--line);border-radius:var(--r)}.wtvid p{margin:8px 0 0}
+
+/* Nov 26: Help page and Show me pointer */
+.helpbox input[type=search]{width:100%;margin:0 0 6px}
+.helpq{border-top:1px solid var(--line);padding:2px 0}
+.helpq:first-child{border-top:0}
+.helpq summary{cursor:pointer;padding:13px 0;font-weight:500;list-style:none;display:flex;justify-content:space-between;gap:12px}
+.helpq summary::-webkit-details-marker{display:none}
+.helpq summary::after{content:"+";color:var(--muted);font-weight:400}
+.helpq[open] summary::after{content:"−"}
+.helpq p{margin:0 0 12px;color:var(--muted);line-height:1.55}
+.helpq .btn{margin:0 0 14px}
+.hl-pulse{outline:2px solid var(--accent,#B39556);outline-offset:4px;border-radius:6px;animation:hlp 1.4s ease-in-out 3}
+@keyframes hlp{0%,100%{outline-color:var(--accent,#B39556)}50%{outline-color:transparent}}
+@media (prefers-reduced-motion:reduce){.hl-pulse{animation:none}}
