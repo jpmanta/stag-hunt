@@ -1,4 +1,4 @@
-/* Polish (Nov 26): quieter ornaments, cleaner labels, slow motion. Loaded last on the public pages.
+/* Polish (Nov 26): quieter ornaments, cleaner labels, slow motion. Loaded last on the public pages, the pitch and track pages included.
    Undo: remove the polish.css / polish.js lines from each page (copies in backups/before-polish-nov26). */
 
 /* 1. Pages cross-fade into each other (browsers that support it; others just load as before) */
@@ -9,11 +9,15 @@ html[data-a11y-calm]::view-transition-group(*),html[data-a11y-calm]::view-transi
 
 /* 2. Small gold labels in a clean sans, like a jeweller's tag (only when no Reading help font is chosen) */
 html:not([data-a11y-font]) .crest{font:500 11px/1 var(--sans)!important;letter-spacing:.2em!important}
-.crest::before,.crest::after{width:44px}
+/* A label stays on one line. Its gold lines are 44px where there is room and give way on a narrow phone,
+   so a long label neither wraps nor pushes the page wider than the screen. */
+.crest{white-space:nowrap}
+.crest::before,.crest::after{flex:1 1 0;width:auto;max-width:44px}
+@media (max-width:349px){.crest::before,.crest::after{display:none!important}}   /* too narrow for lines: the label stands alone */
 
 /* 3. One ornament per title: the gold lines beside the label stay, the short rule under the title goes */
 .learnpage .learn-h1::after{display:none}
-.learnpage .learn-h1{margin-bottom:28px}
+.learnpage .learn-h1{margin-bottom:28px!important}
 
 /* 4. The two doors: no gold tab on top, more room inside */
 .door::before{display:none}

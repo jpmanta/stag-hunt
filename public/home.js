@@ -399,18 +399,20 @@ const reduceMotion = false;
         svg.appendChild(el("text", { x: x + cw - 14, y: y + 26, "text-anchor": "end", fill: css("--forest"), "font-family": "Cormorant Garamond, Georgia, serif", "font-size": 16, "font-style": "italic" }, "stable"));
       }
     }
-    // A's best-response arrows (vertical, within each column) and B's (horizontal, within each row)
+    // Best-response arrows. Each sits on the wall between two squares, at its middle, in line with the numbers:
+    // A's cross the wall between the rows, B's the wall between the columns. Placed this way no two ever cross.
+    const reach = 28, arrow = (x1, y1, x2, y2) => svg.appendChild(el("line", { x1, y1, x2, y2, stroke: accent, "stroke-width": 2, "marker-end": "url(#ah)" }));
     for (let j = 0; j < 2; j++) {
       const a0 = pay[0][j][0], a1 = pay[1][j][0];
       if (a0 === a1) continue;
-      const from = a0 > a1 ? 1 : 0, to = 1 - from, x = x0 + cw * j + 30;
-      svg.appendChild(el("line", { x1: x, y1: y0 + ch * from + ch / 2 + (from ? -20 : 20), x2: x, y2: y0 + ch * to + ch / 2 + (to ? -20 : 20), stroke: accent, "stroke-width": 2, "marker-end": "url(#ah)" }));
+      const d = a0 > a1 ? -reach : reach, x = x0 + cw * j + cw / 2, y = y0 + ch;   // up toward Stag, or down toward Hare
+      arrow(x, y - d, x, y + d);
     }
     for (let i = 0; i < 2; i++) {
       const b0 = pay[i][0][1], b1 = pay[i][1][1];
       if (b0 === b1) continue;
-      const from = b0 > b1 ? 1 : 0, to = 1 - from, y = y0 + ch * i + ch - 26;
-      svg.appendChild(el("line", { x1: x0 + cw * from + cw / 2 + (from ? -30 : 30), y1: y, x2: x0 + cw * to + cw / 2 + (to ? -30 : 30), y2: y, stroke: accent, "stroke-width": 2, "marker-end": "url(#ah)" }));
+      const d = b0 > b1 ? -reach : reach, x = x0 + cw, y = y0 + ch * i + ch / 2;   // left toward Stag, or right toward Hare
+      arrow(x - d, y, x + d, y);
     }
   }
 
@@ -437,7 +439,12 @@ const reduceMotion = false;
     axes(svg, W, Hh, m, [0, 0.25, 0.5, 0.75, 1].map((v) => ({ v, label: Math.round(v * 100) + "%" })), yt, "How sure you are that your partner hunts the stag", "Days of food, on average", sx, sy);
     svg.appendChild(el("line", { x1: sx(0), y1: sy(L), x2: sx(1), y2: sy(S), stroke: accent, "stroke-width": 2.5 }));
     svg.appendChild(el("line", { x1: sx(0), y1: sy(H), x2: sx(1), y2: sy(H), stroke: fg, "stroke-width": 2.5, "stroke-dasharray": "0" }));
-    const ph = innerWidth < 600; svg.appendChild(el("text", { x: ph ? sx(0.6) + 8 : sx(0.97), y: ph ? sy(L + (S - L) * 0.6) + 26 : sy(L + (S - L) * 0.97) + 22, "text-anchor": ph ? "start" : "end", fill: accent, "font-size": 13, "font-family": "Inter", "font-weight": 600 }, "Hunt the stag"));
+    // "Hunt the stag" sits just above its line, clear of it along its whole width whichever way the line slopes,
+    // and stops short of the dashed tipping-point line when that would run through the words.
+    const stagLabel = svg.appendChild(el("text", { "text-anchor": "end", fill: accent, "font-size": 13, "font-family": "Inter", "font-weight": 600 }, "Hunt the stag"));
+    const lw = stagLabel.getComputedTextLength() || 92, lineY = (x) => sy(L + (S - L) * (x - m.l) / (W - m.l - m.r));
+    let lr = sx(0.97); if (kind() === "stag" && sx(ps) > lr - lw - 8 && sx(ps) < lr + 8) lr = sx(ps) - 8;
+    stagLabel.setAttribute("x", lr); stagLabel.setAttribute("y", Math.min(lineY(lr), lineY(lr - lw)) - 14);
     svg.appendChild(el("text", { x: sx(0) + 6, y: sy(H) - 10, fill: fg, "font-size": 13, "font-family": "Inter", "font-weight": 600 }, "Take a hare"));
     if (kind() === "stag") {
       svg.appendChild(el("line", { x1: sx(ps), x2: sx(ps), y1: m.t, y2: Hh - m.b, stroke: fg, "stroke-dasharray": "4 4" }));
@@ -480,7 +487,12 @@ const reduceMotion = false;
     }
     const dot = (x, stable) => svg.appendChild(el("circle", { cx: sx(x), cy: mid, r: 6.5, fill: stable ? fg : bg, stroke: fg, "stroke-width": 2 }));
     if (k === "stag") { dot(0, true); dot(1, true); dot(ps, false);
-      svg.appendChild(el("text", { x: sx(ps), y: mid - 14, "text-anchor": "middle", fill: fg, "font-size": 12, "font-family": "Inter" }, `tipping point ${pct(ps)}`)); }
+      // The label sits beside the hollow dot, above the axis and above the curve, so the curve never runs through the words.
+      // Left of the dot the curve dips below the axis, so that side is used whenever the words fit there.
+      const tip = svg.appendChild(el("text", { fill: fg, "font-size": 12, "font-family": "Inter" }, `tipping point ${pct(ps)}`));
+      const tw = tip.getComputedTextLength() || 104, left = sx(ps) - 10 - tw >= 2, from = left ? sx(ps) - 10 - tw : sx(ps) + 10;
+      let top = mid; for (let x = from; x <= from + tw; x += 4) top = Math.min(top, sy(g((x - m.l) / (W - m.l - m.r))));
+      tip.setAttribute("text-anchor", left ? "end" : "start"); tip.setAttribute("x", left ? from + tw : from); tip.setAttribute("y", top - 14); }
     else if (k === "hare") { dot(0, true); dot(1, false); }
     else { dot(0, false); dot(1, true); }
     void line;

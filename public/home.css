@@ -265,7 +265,7 @@ blockquote{border-left-color:var(--oak)}
 
 /* quotes: centered between fine rules, with the checker mark */
 blockquote{border:0!important;margin:44px 0!important;padding:30px 6% 24px!important;text-align:center;color:var(--fg)!important;font-size:23px!important;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='.6' y='.6' width='10.8' height='10.8' fill='%23f3eee2' stroke='%232c4a33' stroke-width='.7'/%3E%3Crect x='2' y='2' width='4' height='4' fill='%232c4a33'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%232c4a33'/%3E%3C/svg%3E"),
+  background-image:var(--mark),
     linear-gradient(90deg,transparent,var(--line) 18%,var(--line) 82%,transparent),linear-gradient(90deg,transparent,var(--line) 18%,var(--line) 82%,transparent)!important;
   background-size:12px 12px,100% 1px,100% 1px!important;background-position:50% 0,0 6px,0 100%!important;background-repeat:no-repeat!important}
 blockquote cite{margin-top:16px!important;font-size:10.5px!important}
@@ -307,7 +307,7 @@ blockquote cite{text-transform:none!important;letter-spacing:0!important;font:it
 /* footer: a quiet note under a hairline with the checker mark, no cartoon trees */
 .forestfoot{margin-top:56px!important}
 .forestfoot .fbar{background:none!important;color:var(--muted)!important;font-size:12.5px!important;text-align:center;padding:34px 0 40px!important;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='.6' y='.6' width='10.8' height='10.8' fill='%23f3eee2' stroke='%232c4a33' stroke-width='.7'/%3E%3Crect x='2' y='2' width='4' height='4' fill='%232c4a33'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%232c4a33'/%3E%3C/svg%3E"),linear-gradient(90deg,transparent,var(--line) 20%,var(--line) 80%,transparent)!important;
+  background-image:var(--mark),linear-gradient(90deg,transparent,var(--line) 20%,var(--line) 80%,transparent)!important;
   background-size:10px 10px,min(720px,90%) 1px!important;background-position:50% 0,50% 5px!important;background-repeat:no-repeat!important}
 .forestfoot .fbar .wrap{max-width:730px;margin:0 auto;text-wrap:pretty}
 @media(min-width:780px){.forestfoot .fbar .wrap{text-wrap:wrap;text-align:justify;text-align-last:center}}
@@ -332,10 +332,10 @@ blockquote cite{text-transform:none!important;letter-spacing:0!important;font:it
 .contactpage .cgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
 @media(max-width:640px){.contactpage .cgrid{grid-template-columns:1fr}}
 .contactpage label{display:block;font:500 13px var(--sans);color:var(--muted);margin:14px 0 6px}
-.contactpage input,.contactpage select,.contactpage textarea{width:100%;font:16px var(--sans);padding:11px 13px;border:1px solid var(--line);border-radius:6px;background:#FFFFFF;color:var(--fg)}
+.contactpage input,.contactpage select,.contactpage textarea{width:100%;font:16px var(--sans);padding:11px 13px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
 .contactpage .btn{margin-top:18px}
 .contactpage .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
-.cmsg{font:15px var(--sans);margin-top:12px;min-height:1.4em}.cmsg.ok{color:var(--forest)}.cmsg.err{color:#9a3324}/* "What a cohort looks like" */
+.cmsg{font:15px var(--sans);margin-top:12px;min-height:1.4em}.cmsg.ok{color:var(--forest)}.cmsg.err{color:var(--err)}/* "What a cohort looks like" */
 
 .cohortlook .clede{max-width:620px}
 /* cohort section, simplified */
@@ -536,8 +536,7 @@ blockquote cite{text-transform:none!important;letter-spacing:0!important;font:it
   /* Less dead space before the fine print */
   .learnpage main{padding-bottom:8px}
   .learnpage .pager{margin-bottom:8px!important}
-  /* The Group: title as big as the other pages, bigger scene labels */
-  .group-solo h2:first-of-type{font-size:40px!important}
+  /* The Group: bigger scene labels */
   .huntscene{margin:22px auto 0!important}
   /* Tables fit without cramped wrapping */
   .learnpage .chapter .tbl{font-size:14px!important}
@@ -618,7 +617,7 @@ body.learnpage main li,
 body.learnpage .group-solo .clede{font-size:18px!important;line-height:1.65!important}
 body.learnpage .seatnote,body.learnpage .ahint{color:var(--muted)!important}
 /* small gold labels: darker gold so they read */
-body.learnpage dl.spec dt,body.learnpage .crest span{color:#7f6430!important}
+body.learnpage dl.spec dt,body.learnpage .crest span{color:var(--gold-ink)!important}
 blockquote,body.learnpage main blockquote p{font-family:var(--serif)}
 
 /* Emphasis (Nov 9): medium weight instead of heavy fake bold in the reading font */
@@ -660,12 +659,9 @@ body.learnpage main :is(p,li,dd,td) :is(b,strong){font-weight:600!important}
 
 /* ===== One heading system (Nov 9) =====
    Page title: same size on every page. Section heading: same size on every page. */
-.learnpage .group-solo p.crest + h2{font-family:var(--serif)!important;font-size:clamp(44px,6vw,72px)!important;font-weight:500!important;letter-spacing:-.015em;line-height:1.1;margin:0 0 4px!important;text-wrap:balance}
-.learnpage .group-solo p.crest + h2::after{content:"";display:block;width:56px;height:1px;background:var(--gold-line);margin:22px auto 4px}
-/* The Group's title arrives like every other page title. Its heading is an h2 inside the first section, so the title rule in style.css (motion) misses it. */
-@media (prefers-reduced-motion:no-preference){.learnpage .group-solo p.crest + h2{animation:riseslow .9s var(--ease-out) both}}
 .learnpage .article.chapter > .sec:not(:first-child) h2,
 .learnpage .group-solo .cohortlook > h2,
+.learnpage .group-solo .compare > h2,
 .learnpage .group-solo .clrow .cl-h,
 .learnpage .group-solo .cl-tog,
 .learnpage main form h2{font-family:var(--serif)!important;font-size:clamp(26px,3.4vw,32px)!important;font-weight:500!important;font-style:normal!important;line-height:1.25!important;letter-spacing:-.005em}
@@ -674,7 +670,7 @@ body.learnpage main :is(p,li,dd,td) :is(b,strong){font-weight:600!important}
 
 /* Labeled rows, refined (Nov 9): serif labels that match the site, set close to their text */
 .learnpage .group-solo dl.spec>div{gap:22px!important;align-items:baseline!important;padding:15px 0!important}
-.learnpage .group-solo dl.spec dt{font:600 17.5px/1.4 var(--serif)!important;letter-spacing:.01em!important;text-transform:none!important;color:#7f6430!important;text-align:right!important}
+.learnpage .group-solo dl.spec dt{font:600 17.5px/1.4 var(--serif)!important;letter-spacing:.01em!important;text-transform:none!important;color:var(--gold-ink)!important;text-align:right!important}
 @media(max-width:600px){
   .learnpage .group-solo dl.spec>div{grid-template-columns:1fr!important;gap:2px!important;padding:14px 0!important}
   .learnpage .group-solo dl.spec dt{text-align:left!important;font-size:16.5px!important}
@@ -686,10 +682,10 @@ body.learnpage main :is(p,li,dd,td) :is(b,strong){font-weight:600!important}
 .applypage .aprep .aprep-sub{text-align:center!important;width:auto!important;max-width:none!important;color:var(--muted)!important;font-size:17px!important;margin:0 0 14px!important}
 .applypage .aprep dl.spec{margin:0;padding:0}
 .applypage .aprep dl.spec>div{display:grid;grid-template-columns:120px 1fr;gap:20px;align-items:baseline;padding:13px 0;border-top:1px solid var(--line)}
-.applypage .aprep dl.spec dt{margin:0;font:600 17.5px/1.4 var(--serif);color:#7f6430;text-align:right}
+.applypage .aprep dl.spec dt{margin:0;font:600 17.5px/1.4 var(--serif);color:var(--gold-ink);text-align:right}
 .applypage .aprep dl.spec dd{margin:0;font:400 18.5px/1.5 var(--serif);color:var(--fg);text-wrap:pretty}
 @media(max-width:600px){.applypage .aprep{padding:22px 18px 8px!important}.applypage .aprep dl.spec>div{grid-template-columns:1fr;gap:2px}.applypage .aprep dl.spec dt{text-align:left}}
-body.learnpage main.applypage .aprep dl.spec dt{font:600 17.5px/1.4 var(--serif)!important;letter-spacing:.01em!important;text-transform:none!important;color:#7f6430!important}
+body.learnpage main.applypage .aprep dl.spec dt{font:600 17.5px/1.4 var(--serif)!important;letter-spacing:.01em!important;text-transform:none!important;color:var(--gold-ink)!important}
 body.learnpage main.applypage .aprep p.aprep-sub{text-align:center!important;width:auto!important;max-width:none!important;margin:0 0 14px!important;font-size:17px!important}
 body.learnpage main.applypage .ahow{margin-top:22px!important}
 body.learnpage main.applypage .ahow + .aprep{margin-top:16px!important}
@@ -703,7 +699,7 @@ body.learnpage main.applypage .aprep dl.spec>div{grid-template-columns:130px 1fr
 .learnpage .article dl.spec,.learnpage main.contactpage dl.spec{max-width:640px;margin:18px auto 8px;padding:0;text-align:left}
 .learnpage .article dl.spec>div{display:grid;grid-template-columns:170px 1fr;gap:22px;align-items:baseline;padding:14px 0;border-top:1px solid var(--line)}
 .learnpage .article dl.spec>div:last-child{border-bottom:1px solid var(--line)}
-body.learnpage .article dl.spec dt{margin:0;font:600 17.5px/1.4 var(--serif)!important;letter-spacing:.01em!important;text-transform:none!important;color:#7f6430!important;text-align:right}
+body.learnpage .article dl.spec dt{margin:0;font:600 17.5px/1.4 var(--serif)!important;letter-spacing:.01em!important;text-transform:none!important;color:var(--gold-ink)!important;text-align:right}
 .learnpage .article dl.spec dd{margin:0;color:var(--fg)}
 .learnpage .article dl.spec dd b{font-weight:600}
 @media(max-width:600px){.learnpage .article dl.spec>div{grid-template-columns:1fr;gap:2px}body.learnpage .article dl.spec dt{text-align:left}}
@@ -775,7 +771,7 @@ body.learnpage main details.why-p p{margin:8px auto 4px!important;text-align:lef
 .landing .board .frame{position:relative;border:0!important;line-height:0}
 .landing .board .frame::after{content:"";position:absolute;inset:0;border:1px solid var(--fg);pointer-events:none}
 /* Four ways table: the lever reads like the gold labels elsewhere in the chapters. */
-body.learnpage .article .tbl.ways td{white-space:nowrap}body.learnpage .article .tbl.ways td:first-child{font-weight:600;color:#7f6430}
+body.learnpage .article .tbl.ways td{white-space:nowrap}body.learnpage .article .tbl.ways td:first-child{font-weight:600;color:var(--gold-ink)}
 @media(max-width:640px){body.learnpage .article .tbl.ways td{white-space:normal!important}}
 /* Chapter takeaways: one centered line under a short gold rule. (:is with an id outranks the long learnpage text rules.) */
 body.learnpage main p:is(.kicker,#_){position:relative;text-align:center!important;font:500 23px/1.4 var(--serif)!important;font-size:23px!important;max-width:560px;margin:30px auto 0!important;padding-top:22px}
@@ -783,7 +779,7 @@ body.learnpage main p:is(.kicker,#_)::before{content:"";position:absolute;top:0;
 /* Chapter stats: big number over a short line. */
 body.learnpage .chapter .readout.stats{margin:22px 0 4px}
 body.learnpage .chapter .readout.stats .r{text-align:center;padding:16px 14px;font:400 14px/1.45 var(--sans);color:var(--muted)}
-body.learnpage .chapter .readout.stats .r b{font:500 34px/1.1 var(--serif);color:#7f6430;margin:0 0 6px}
+body.learnpage .chapter .readout.stats .r b{font:500 34px/1.1 var(--serif);color:var(--gold-ink);margin:0 0 6px}
 /* Four ways table on phones: each lever stacks as a short card (lever, why, Stag Hunt). */
 @media(max-width:640px){
   body.learnpage .article .tbl.ways thead{display:none}

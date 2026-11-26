@@ -4,6 +4,7 @@ import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthen
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import { draftApplication, draftDeal, fillDeal } from "./draft-via-mastra.js";
 import { videoPart } from "./video-part.js";
+import { withCache } from "./asset-cache.js";
 
 const RP_ID = "staghunts.com";
 const RP_ORIGIN = "https://staghunts.com";
@@ -62,8 +63,10 @@ async function handle(request, env, ctx) {
   if (url.pathname === "/.well-known/assetlinks.json") return androidSiteFile(env);
   if (!url.pathname.startsWith("/api/")) {
     // A video asked for in parts (Safari and every iPhone do) needs a "206" answer the file store does not give.
-    if (url.pathname.endsWith(".mp4") && request.headers.has("range")) return videoPart(request, env);
-    return env.ASSETS.fetch(request);
+    if (url.pathname.endsWith(".mp4") && request.headers.has("range")) return withCache(await videoPart(request, env), url.pathname);
+    // Browsers and search engines ask for this by name; the pages themselves carry their own icon.
+    if (url.pathname === "/favicon.ico") return withCache(await env.ASSETS.fetch(new URL("/icon-192.png", url.origin)), "/icon-192.png");
+    return withCache(await env.ASSETS.fetch(request), url.pathname);
   }
 
   try {
@@ -146,6 +149,9 @@ async function route(request, env, ctx, url) {
     if (!user) return json({ user: null }, 401);
     return json({ user: publicUser(user) });
   }
+  // "Am I signed in?", asked by every public page to pick between "Member sign in" and "Open Stag Hunt".
+  // It always answers 200, so a visitor who isn't signed in gets no failed request in their browser.
+  if (m === "GET" && p === "/api/signed-in") return json({ in: !!(await currentUser(request, env)) });
 
   if (m === "GET" && (mt = p.match(/^\/api\/track\/([A-Za-z0-9_-]{43})$/))) return publicTrack(env, mt[1]);
 

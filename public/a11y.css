@@ -88,11 +88,15 @@ html[data-a11y-links] body a:not(.btn):not(#a11y-panel a){background:#FFF3A6!imp
 html[data-a11y-theme=dark]{color-scheme:dark;
   --bg:#12161F;--panel:#1A2030;--sunk:#202738;--fg:#ECE8DF;--muted:#B4B8C4;--faint:#8D93A2;--line:#323A4D;
   --accent:#C9D5F0;--accent-soft:#232B3D;--accent-fg:#12161F;--forest:#C9D5F0;--moss:#9AA8C8;--oak:#C8AA6A;--oak-dark:#D8BE86;
-  --sq:#2A3142;--sq2:#202738;--board-sq:#2A3142;--board-sq2:#1A2030;--gilt:#C8AA6A;--gold:#D8BE86;--gold-line:#B89A5E}
+  --sq:#2A3142;--sq2:#202738;--board-sq:#2A3142;--board-sq2:#1A2030;--gilt:#C8AA6A;--gold:#D8BE86;--gold-line:#B89A5E;
+  --gold-ink:#D8BE86;--err:#E2A08C;--field:#202738;--chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23ECE8DF' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");--chev-up:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 6.5l5-5 5 5' fill='none' stroke='%23ECE8DF' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='.6' y='.6' width='10.8' height='10.8' fill='%2312161F' stroke='%23ECE8DF' stroke-width='.7'/%3E%3Crect x='2' y='2' width='4' height='4' fill='%23ECE8DF'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23ECE8DF'/%3E%3C/svg%3E")}
 html[data-a11y-theme=dark] body{background-image:none}
 html[data-a11y-theme=contrast]{
   --bg:#FFFFFF;--panel:#FFFFFF;--sunk:#F2F2F2;--fg:#000000;--muted:#111111;--faint:#333333;--line:#000000;
-  --accent:#000000;--accent-soft:#FFFFFF;--accent-fg:#FFFFFF;--forest:#000000;--moss:#000000;--oak:#000000;--oak-dark:#000000;--gold:#000000;--gold-line:#000000}
+  --accent:#000000;--accent-soft:#FFFFFF;--accent-fg:#FFFFFF;--forest:#000000;--moss:#000000;--oak:#000000;--oak-dark:#000000;--gold:#000000;--gold-line:#000000;
+  --gold-ink:#000000;--field:#FFFFFF;--chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");--chev-up:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 6.5l5-5 5 5' fill='none' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='.6' y='.6' width='10.8' height='10.8' fill='%23FFFFFF' stroke='%23000000' stroke-width='.7'/%3E%3Crect x='2' y='2' width='4' height='4' fill='%23000000'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23000000'/%3E%3C/svg%3E")}
 html[data-a11y-theme=contrast] body{background-image:none}
 html[data-a11y-theme=contrast] body a{text-decoration:underline!important;color:#0000CC!important}
 html[data-a11y-theme=contrast] body .notice,html[data-a11y-theme=contrast] body .panel,html[data-a11y-theme=contrast] body .card{border:1.5px solid #000!important}

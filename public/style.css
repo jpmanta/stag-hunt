@@ -182,7 +182,7 @@ input,textarea,select{background-color:var(--bg);border:1px solid var(--line);bo
 input:hover,textarea:hover,select:hover{border-color:#c9bda2}
 input:focus,textarea:focus,select:focus{outline:none!important;border-color:var(--forest)!important;box-shadow:0 0 0 3px rgba(184,154,94,.22)}   /* a soft gold halo, the same gold as the frames */
 select{-webkit-appearance:none;-moz-appearance:none;appearance:none;cursor:pointer;padding-right:38px;line-height:1.4;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%232c4a33' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image:var(--chev);
   background-repeat:no-repeat;background-position:right 14px center;background-size:11px 8px}
 select::-ms-expand{display:none}
 select option{color:var(--fg);background:var(--panel)}
@@ -192,7 +192,7 @@ input[type=range]{border:0!important;box-shadow:none!important;background:none}
 /* ---------- friendlier forms inside the members' app ---------- */
 .app label,.app .label{font:500 14px/1.3 var(--sans);color:var(--fg);letter-spacing:0;margin:18px 0 7px}
 .app .hint{font-size:13px;color:var(--muted)}
-.app input,.app select,.app textarea{border-radius:8px;background-color:#fdfbf6;font-size:15.5px;padding:11px 13px}
+.app input,.app select,.app textarea{border-radius:8px;background-color:var(--field);font-size:15.5px;padding:11px 13px}
 .app select{padding-right:38px}
 .app .panel{border-radius:10px}
 .app .panel .ph{border-bottom-color:transparent;padding-bottom:4px}
@@ -225,12 +225,12 @@ input[type=range]{border:0!important;box-shadow:none!important;background:none}
 .cs.inline{display:inline-block;min-width:160px;vertical-align:middle}
 .cs-native{position:absolute!important;opacity:0;pointer-events:none;width:1px!important;height:1px!important;left:0;bottom:0}
 .cs-btn{width:100%;display:block;text-align:left;font:400 15.5px/1.4 var(--sans);color:var(--fg);padding:11px 40px 11px 13px;border:1px solid var(--line);border-radius:8px;cursor:pointer;
-  background:#fdfbf6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%232c4a33' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center/11px 8px;
+  background:var(--field) var(--chev) no-repeat right 14px center/11px 8px;
   transition:border-color .15s,box-shadow .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cs.inline .cs-btn{padding:8px 34px 8px 12px;font-size:14px}
 .cs-btn:hover{border-color:#c9bda2}
 .cs.open .cs-btn,.cs-btn:focus-visible{outline:none;border-color:var(--forest);box-shadow:0 0 0 3px rgba(184,154,94,.22)}
-.cs.open .cs-btn{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 6.5l5-5 5 5' fill='none' stroke='%232c4a33' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.cs.open .cs-btn{background-image:var(--chev-up)}
 .cs-menu{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 6px);min-width:190px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 40px -14px rgba(50,35,15,.35),0 2px 6px rgba(50,35,15,.06);padding:6px;max-height:320px;overflow:auto;animation:csin .12s ease-out}
 .cs.inline .cs-menu{left:auto;right:0}
 @keyframes csin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
@@ -459,7 +459,7 @@ h1 .cohort{font-size:18px;height:26px;min-width:30px;vertical-align:8px}
 .seats i{width:18px;height:18px;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
 .seats i.on{background:var(--forest);border-color:var(--forest)}
 .chist{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
-.danger-link{color:#9a3324!important;margin-left:12px}
+.danger-link{color:var(--err)!important;margin-left:12px}
 /* observers: read-only (the server enforces it; this just hides the controls) */
 body.observer [href="#/deals/new"],body.observer #score,body.observer #hunt .hunt-form,body.observer #invform,body.observer details:has(#invform),
 body.observer #updform,body.observer #outcomeform,body.observer #nomform,body.observer .panel:has(#nomform),body.observer [data-obj]{display:none!important}
@@ -494,7 +494,12 @@ body.observer #updform,body.observer #outcomeform,body.observer #nomform,body.ob
   --bg:#F9F7F2;--panel:#FFFFFF;--sunk:#F3EFE7;--fg:#1B2233;--muted:#57596A;--faint:#8C8E98;--line:#DDD6C9;
   --accent:#14244A;--accent-soft:#F3EDE1;--accent-fg:#FAF9F6;
   --forest:#14244A;--moss:#5A6A8A;--oak:#B39556;--oak-dark:#7D6838;
-  --sq:#D9D2C1;--sq2:#ECE8DF;--gilt:#B39556}
+  --sq:#D9D2C1;--sq2:#ECE8DF;--gilt:#B39556;
+  /* Fields, and the small marks that can't take a colour from the page. Kept here once, so each Reading help theme can swap them (a11y.css). */
+  --field:#FDFBF6;
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2314244A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --chev-up:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 6.5l5-5 5 5' fill='none' stroke='%2314244A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --mark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Crect x='.6' y='.6' width='10.8' height='10.8' fill='%23F9F7F2' stroke='%2314244A' stroke-width='.7'/%3E%3Crect x='2' y='2' width='4' height='4' fill='%2314244A'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%2314244A'/%3E%3C/svg%3E")}
 
 /* ---------- Record a founder call ---------- */
 /* The other way to share a deal: a quiet card under the title, never louder than the page */
@@ -540,7 +545,7 @@ ol:not([class])>li::marker,ol.terms-list>li::marker{font-family:var(--serif);fon
 ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 
 /* ===== Regal system: gold hairlines, crests, gilded buttons (site-wide) ===== */
-:root{--gold:#9a7b3f;--gold-line:#b89a5e}
+:root{--gold:#9a7b3f;--gold-line:#b89a5e;--gold-ink:#7f6430}   /* gold-ink: gold dark enough for small labels on ivory */
 .crest{display:flex;align-items:center;justify-content:center;gap:14px;margin:0 0 6px;font:500 12px/1 var(--serif)!important;letter-spacing:.32em;text-transform:uppercase;color:var(--gold)!important}
 .crest::before,.crest::after{content:"";height:1px;width:36px;background:var(--gold-line)}
 .landing .crest{justify-content:flex-start}.landing .crest::after{display:none}
@@ -569,7 +574,7 @@ ol:not([class])>li,ol.terms-list>li{padding-left:.35em}
 .scorecard .sc-grid{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);margin-top:12px}
 .scorecard .sc-row{padding:16px 18px;border-right:1px solid var(--line)}
 .scorecard .sc-row:last-child{border-right:0}
-.scorecard .sc-l{font:500 14px/1.3 var(--serif);color:#7f6430}
+.scorecard .sc-l{font:500 14px/1.3 var(--serif);color:var(--gold-ink)}
 .scorecard .sc-n{font:500 34px/1.1 var(--serif);margin-top:6px;color:var(--fg)}
 .scorecard .sc-n span{font-size:18px;color:var(--muted);font-weight:400}
 .scorecard .sc-n.ok{color:#3f6b4a}
