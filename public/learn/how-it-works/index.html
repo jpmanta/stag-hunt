@@ -13,7 +13,7 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/style.css?v=1797700200"><link rel="stylesheet" href="/a11y.css?v=1797800006"><script src="/a11y.js?v=1797800005"></script>
-<link rel="stylesheet" href="/home.css?v=1797500001">
+<link rel="stylesheet" href="/home.css?v=1797500003">
 <style>
 /* How it works: styles for this page only. Everything is scoped to #hw, and every color is one of the
    site's variables, so Reading help (dark, high contrast, larger text, other fonts) works here too. */
@@ -63,11 +63,15 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
 #hw .hw-video{margin:0 auto 36px;max-width:640px}
 #hw .hw-video .vf{position:relative;border:1px solid var(--line);background:#F9F7F2}
 #hw .hw-video video{display:block;width:100%;height:auto;aspect-ratio:16/9}
-#hw .hw-video figcaption{font:italic 400 16.5px/1.5 var(--serif);color:var(--muted);text-align:center;margin-top:12px;text-wrap:balance}
-#hw .hw-play{position:absolute;left:50%;top:35.56%;width:12.5%;min-width:46px;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#14244A;color:#F9F7F2;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 5px -3px rgba(20,36,74,.3)}
+#hw .hw-video figcaption{font:400 16.5px/1.5 var(--serif);color:var(--muted);text-align:center;margin-top:12px;text-wrap:balance}
+#hw .hw-play{position:absolute;left:50%;top:35.56%;width:16%;min-width:58px;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#c9a877;color:#14244A;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px rgba(249,247,242,.9),0 10px 26px rgba(20,36,74,.35);cursor:pointer}
 #hw .hw-play[hidden]{display:none}
-#hw .hw-play::after{content:"";position:absolute;inset:7.5%;border-radius:50%;border:clamp(1.2px,.34vw,2.2px) solid #F9F7F2}
-#hw .hw-play svg{width:44%;height:44%}
+#hw .hw-play::after{content:none}
+#hw .hw-play svg{width:46%;height:46%;margin-left:6%}
+#hw .hw-badge{position:absolute;left:3.5%;bottom:5%;display:inline-flex;align-items:center;gap:7px;background:#14244A;color:#F9F7F2;font:500 13px/1 Inter,system-ui,sans-serif;padding:7px 12px 7px 10px;border-radius:999px;pointer-events:none}
+#hw .hw-badge svg{width:11px;height:11px}
+#hw .hw-badge[hidden]{display:none}
+#hw .hw-video .vf.ready video{cursor:pointer}
 #hw .hw-play:focus-visible{outline:2px solid #14244A;outline-offset:4px}
 @media(prefers-reduced-motion:no-preference){#hw .hw-play{transition:transform .2s ease-out}#hw .hw-play:hover{transform:translate(-50%,-50%) scale(1.06)}}
 
@@ -296,8 +300,9 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
             <a href="/learn/how-it-works/investors.mp4">Open the video for investors</a>
           </video>
           <button class="hw-play" type="button" hidden><span class="vh">Play the video for investors</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.6 5.8v12.4L19 12z" fill="currentColor"/></svg></button>
+          <span class="hw-badge" aria-hidden="true" hidden><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.6 5.8v12.4L19 12z" fill="currentColor"/></svg>Watch · 0:59</span>
         </div>
-        <figcaption>Watch the steps for investors in under a minute. They are also written out below.</figcaption>
+        <figcaption>A one-minute video. Press play to watch, or read the steps below.</figcaption>
       </figure>
       <div class="hw-strip" role="list" aria-label="The four stages for investors">
         <div class="hw-stop" role="listitem"><a class="hw-go" href="#i-join"><span class="mk"><span class="pc f" aria-hidden="true"></span></span><span class="n">Join</span><span class="d">Free. No invite.</span></a></div>
@@ -496,8 +501,9 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
             <a href="/learn/how-it-works/founders.mp4">Open the video for founders</a>
           </video>
           <button class="hw-play" type="button" hidden><span class="vh">Play the video for founders</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.6 5.8v12.4L19 12z" fill="currentColor"/></svg></button>
+          <span class="hw-badge" aria-hidden="true" hidden><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.6 5.8v12.4L19 12z" fill="currentColor"/></svg>Watch · 0:58</span>
         </div>
-        <figcaption>Watch the steps for founders in under a minute. They are also written out below.</figcaption>
+        <figcaption>A one-minute video. Press play to watch, or read the steps below.</figcaption>
       </figure>
       <div class="hw-strip" role="list" aria-label="The four stages for founders">
         <div class="hw-stop" role="listitem"><a class="hw-go" href="#f-apply"><span class="mk"><span class="pc f" aria-hidden="true"></span></span><span class="n">Apply</span><span class="d">About 15 minutes.</span></a></div>
@@ -650,7 +656,7 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
   </div>
   <nav class="pager"><a href="/learn/the-group/"><span>← About us</span>The Group</a><a class="nx" href="/apply/"><span>Next →</span>For Founders</a></nav>
 </main>
-<footer class="forestfoot"><div class="fbar"><div class="wrap">Stag Hunt is a new way to invest: investors share the good early-stage deals they find, and each decides alone. It is not a fund, broker-dealer, funding portal or investment adviser, and it does not offer, sell or recommend securities. It never pools, holds or moves money. Neither Stag Hunt nor its organizer or members take fees or compensation from any company discussed. Members' calls and comments are opinions, not investment advice. Every investment is made directly between a member and a company, on that company's own terms and documents. Startup investing is illiquid and high-risk; most startups fail. Invest only what you can afford to lose entirely.<span class="flinks"><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/contact/">Contact</a></span></div></div></footer>
+<footer class="forestfoot"><div class="fbar"><div class="wrap">Stag Hunt is a new way to invest: investors share the good early-stage deals they find, and each decides alone. It is not a fund, broker-dealer, funding portal or investment adviser, and it does not offer, sell or recommend securities. It never pools, holds or moves money. Neither Stag Hunt nor its organizer or members take fees or compensation from any company discussed. Members' calls and comments are opinions, not investment advice. Every investment is made directly between a member and a company, on that company's own terms and documents. Startup investing is illiquid and high-risk; most startups fail. Invest only what you can afford to&nbsp;lose&nbsp;entirely.<span class="flinks"><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/contact/">Contact</a></span></div></div></footer>
 <script>(function(){const set=(on)=>document.querySelectorAll("[data-signin]").forEach(a=>{a.textContent=on?"Open Stag Hunt":"Member sign in";a.href=on?"/app":"/login";});
 let k;try{k=localStorage.getItem("sh_in")}catch(e){} if(k==="1")set(true);
 fetch("/api/me").then(r=>{set(r.ok);try{r.ok?localStorage.setItem("sh_in","1"):localStorage.removeItem("sh_in")}catch(e){}}).catch(()=>{});})();</script>
@@ -734,8 +740,10 @@ fetch("/api/me").then(r=>{set(r.ok);try{r.ok?localStorage.setItem("sh_in","1"):l
   // The video: with scripts on, the picture stays clean and the play piece starts it; the browser's own controls come in once it plays.
   [].forEach.call(hw.querySelectorAll(".hw-video"), function (f) {
     var v = f.querySelector("video"), b = f.querySelector(".hw-play"); if (!v || !b || !v.play) return;
-    function started() { b.hidden = true; v.controls = true; }
-    v.controls = false; b.hidden = false;
+    var badge = f.querySelector(".hw-badge"), vf = f.querySelector(".vf");
+    function started() { b.hidden = true; if (badge) badge.hidden = true; if (vf) vf.classList.remove("ready"); v.controls = true; }
+    v.controls = false; b.hidden = false; if (badge) badge.hidden = false; if (vf) vf.classList.add("ready");
+    v.addEventListener("click", function () { if (!v.controls) b.click(); });
     b.addEventListener("click", function () {
       started();
       var p = v.play(); if (p && p.catch) p.catch(function () {});
