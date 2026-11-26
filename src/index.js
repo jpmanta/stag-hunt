@@ -35,8 +35,24 @@ const SECURITY_HEADERS = [
   ["Permissions-Policy", "microphone=(self), camera=(), geolocation=(), payment=(), usb=()"],
 ];
 
+// Sanctions (Nov 26, Jonathan: follow the strictest rules). Visitors from places under broad US sanctions,
+// plus Russia and Belarus, get a short notice instead of the site. Countries are ISO codes from Cloudflare;
+// regions are the occupied parts of Ukraine that US sanctions cover (Crimea, Sevastopol, Donetsk, Luhansk).
+const BLOCKED_COUNTRIES = new Set(["CU", "IR", "KP", "SY", "RU", "BY"]);
+const BLOCKED_REGIONS = new Set(["UA-43", "UA-40", "UA-14", "UA-09"]);
+function sanctioned(request) {
+  const cf = request.cf || {};
+  const c = String(cf.country || "").toUpperCase();
+  return BLOCKED_COUNTRIES.has(c) || BLOCKED_REGIONS.has(c + "-" + String(cf.regionCode || "").toUpperCase());
+}
+
 export default {
   async fetch(request, env, ctx) {
+    if (sanctioned(request)) {
+      const out = new Response("Stag Hunt is not available in your country or region, because of sanctions laws.", { status: 451, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+      for (const [k, v] of SECURITY_HEADERS) out.headers.set(k, v);
+      return out;
+    }
     const res = await handle(request, env, ctx);
     if (res.status === 101 || res.webSocket) return res;   // live-update sockets pass through untouched
     const out = new Response(res.body, res);
@@ -1713,6 +1729,7 @@ const csvCell = (v) => { const s = v === null || v === undefined ? "" : String(v
 
 async function cleanup(env) {
   const t = now();
+  try { await purgeFounderData(env, t); } catch (e) { console.log("purgeFounderData", e && e.message); }
   await env.DB.batch([
     env.DB.prepare("DELETE FROM login_codes WHERE expires_at < ?").bind(t),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(t),
@@ -1721,6 +1738,32 @@ async function cleanup(env) {
     env.DB.prepare("DELETE FROM rec_segments WHERE rec_id IN (SELECT id FROM recordings WHERE created_at < ?)").bind(t - REC_KEEP_DAYS * 86400),
     env.DB.prepare("DELETE FROM recordings WHERE created_at < ?").bind(t - REC_KEEP_DAYS * 86400),
   ]);
+}
+
+// Privacy (Nov 26, GDPR storage limit): keep founders' data only as long as it is needed.
+// A spoken interview that never became an application: after REC_KEEP_DAYS its recording is deleted at
+// ElevenLabs, and our transcript, drafted answers and IP hash are cleared (the row stays for the cost count).
+// An application no member took within APP_KEEP_DAYS is deleted, with its interview, here and at ElevenLabs.
+async function purgeFounderData(env, t) {
+  const elDelete = async (cid) => {
+    if (!cid || !env.ELEVENLABS_API_KEY) return true;
+    const r = await fetch(EL_API + "/conversations/" + encodeURIComponent(cid), { method: "DELETE", headers: { "xi-api-key": env.ELEVENLABS_API_KEY } });
+    return r.ok || r.status === 404;
+  };
+  const clear = (id) => env.DB.prepare("UPDATE interviews SET transcript = NULL, fields = NULL, ip_hash = NULL, conversation_id = NULL WHERE id = ?").bind(id);
+  const unsent = (await env.DB.prepare(`SELECT id, conversation_id FROM interviews
+      WHERE created_at < ? AND (transcript IS NOT NULL OR fields IS NOT NULL OR ip_hash IS NOT NULL OR conversation_id IS NOT NULL)
+      AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.interview_id = interviews.id) LIMIT 40`).bind(t - REC_KEEP_DAYS * 86400).all()).results;
+  for (const iv of unsent) if (await elDelete(iv.conversation_id)) await clear(iv.id).run();
+  const old = (await env.DB.prepare(`SELECT a.id, a.interview_id, i.conversation_id FROM applications a LEFT JOIN interviews i ON i.id = a.interview_id
+      WHERE a.status = 'open' AND a.claimed_by IS NULL AND a.deal_id IS NULL AND a.created_at < ?
+      AND NOT EXISTS (SELECT 1 FROM deals d WHERE d.application_id = a.id) LIMIT 40`).bind(t - APP_KEEP_DAYS * 86400).all()).results;
+  for (const a of old) {
+    if (!(await elDelete(a.conversation_id))) continue;
+    const ops = [env.DB.prepare("DELETE FROM applications WHERE id = ?").bind(a.id)];
+    if (a.interview_id) ops.unshift(clear(a.interview_id));
+    await env.DB.batch(ops);
+  }
 }
 
 // Each key keeps its own window: the row expires when its window ends, so cleanup never resets a cap early.
@@ -1761,6 +1804,7 @@ function getCookie(request, name) { const m = (request.headers.get("Cookie") || 
 // right away, and only the text is kept: visible only to the member who
 // recorded it, deleted when the deal is posted or after REC_KEEP_DAYS.
 const REC_KEEP_DAYS = 7;
+const APP_KEEP_DAYS = 365;   // founder applications no member took are deleted after a year
 const REC_MAX_SEGMENTS = 240; // four hours of one-minute pieces
 const DRAFT_FIELDS = {
   company: [80, "The company's name."],
@@ -2130,7 +2174,7 @@ function checkerMark(size = 16) {
 function emailShell(app, inner) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@500&display=swap" rel="stylesheet">
+<link href="/fonts/web.css?v=1" rel="stylesheet">
 <style>:root{color-scheme:light only}</style></head>
 <body style="margin:0;padding:0;background:#F3F1EC;font-family:Georgia,'Times New Roman',serif;color:${M_INK}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F1EC"><tr><td align="center" style="padding:48px 16px">
