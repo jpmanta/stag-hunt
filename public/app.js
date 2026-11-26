@@ -403,7 +403,7 @@ async function viewDeals(_, seq) {
 // Whoever brings the deal knows the founders, so their form skips that question. The ten questions are optional.
 function scorecardHtml(poster = false) {
   return `<div class="scorecard">
-    <div class="yesno"><label><input type="radio" name="yes" value="yes" required><span>${poster ? "Yes, I'd back them" : "Yes, I want to meet them"}</span></label><label><input type="radio" name="yes" value="no"><span>${poster ? "No, just passing it on" : "No, I'd pass"}</span></label></div>
+    <div class="yesno"><label><input type="radio" name="yes" value="yes" required><span>${poster ? "Yes, I'd back them" : "Yes"}</span></label><label><input type="radio" name="yes" value="no"><span>${poster ? "No, just passing it on" : "No"}</span></label></div>
     ${poster ? "" : `<div class="q small met-q">Have you met the founders?</div>
     <div class="yesno"><label><input type="radio" name="met" value="yes" required><span>I've met them</span></label><label><input type="radio" name="met" value="no"><span>Not yet</span></label></div>`}
     <textarea class="why" name="why" required maxlength="300" rows="1" placeholder="Why? One line is enough"></textarea>
