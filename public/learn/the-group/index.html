@@ -80,6 +80,6 @@ fetch("/api/signed-in").then(r=>r.json()).then(d=>{set(d.in);try{d.in?localStora
 (function(){if(!matchMedia("(max-width:600px)").matches)return;document.querySelectorAll(".group-solo .clrow").forEach(function(r,i){var h=r.querySelector(".cl-h");if(!h)return;var b=document.createElement("button");b.type="button";b.className="cl-tog";b.setAttribute("aria-expanded",i===0?"true":"false");b.innerHTML=h.innerHTML+'<span class="cl-ch" aria-hidden="true"></span>';h.innerHTML="";h.appendChild(b);r.classList.add("fold");if(i===0)r.classList.add("open");b.addEventListener("click",function(){var o=r.classList.toggle("open");b.setAttribute("aria-expanded",o?"true":"false")})})})();</script>
 <script src="/group-hunt.js?v=1792902942"></script>
 <script src="/quotes.js?v=1796110000" defer></script>
-<script src="/paper-record-live.js?v=1" defer></script>
+<script src="/paper-record-live.js?v=2" defer></script>
 </body>
 </html>
