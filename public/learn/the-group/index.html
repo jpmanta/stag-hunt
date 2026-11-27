@@ -28,6 +28,11 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
       <p class="founder"><span class="by">Started by</span> <a class="sig" href="https://jonathanmanta.com" rel="author">Jonathan Manta</a></p>
       <div id="huntscene" class="huntscene"></div>
       <blockquote style="margin-top:24px">A deal anyone could find is a hare. A deal only you could find is how we catch the stag.</blockquote>
+    <section class="record">
+      <h2>The public record</h2>
+      <p class="clede">Jonathan&#39;s <a href="https://jonathanmanta.com/stag-hunt">Stag Hunt paper</a> locked five predictions on November 26, 2026, before any result was known. These counts come straight from the site, so they may change as members play. Counts only: no names, deals or dollar amounts.</p>
+      <div id="paper-record"><p class="small muted">The live counts load here.</p></div>
+    </section>
     <section class="cohortlook">
       <h2>Who's in the group</h2>
       <p class="clede">No cap. Each investor who joins may bring deals the others would not have seen.</p><details class="why why-p"><summary>Why</summary><p>Network effects. Each investor who joins may bring deals the others would not have seen, so the group can be worth more to each member as it grows.</p></details>
@@ -60,7 +65,7 @@ r.style.zoom=z===1?"":z;r.style.setProperty("--z",z);window.__zoom=z;}fit();addE
       </div>
     </section>
     </div>
-    <p class="small muted" style="max-width:720px">Group results are for members.<br>Deal terms are not published, so a founder's round stays theirs to announce.</p>
+    <p class="small muted" style="max-width:720px">Group results are for members, apart from the counts in the public record.<br>Deal terms are not published, so a founder's round stays theirs to announce.</p>
     <div class="row" style="margin-top:28px"><a class="btn" href="/login" data-signin>Member sign in</a><span class="small muted">Not a member? <a href="/contact/?seat=1">Reach out.</a></span></div>
     <p class="small muted" style="margin-top:14px">Raising a round? <a href="/apply/">Apply to share it with the group.</a></p>
   </section>
@@ -75,5 +80,6 @@ fetch("/api/signed-in").then(r=>r.json()).then(d=>{set(d.in);try{d.in?localStora
 (function(){if(!matchMedia("(max-width:600px)").matches)return;document.querySelectorAll(".group-solo .clrow").forEach(function(r,i){var h=r.querySelector(".cl-h");if(!h)return;var b=document.createElement("button");b.type="button";b.className="cl-tog";b.setAttribute("aria-expanded",i===0?"true":"false");b.innerHTML=h.innerHTML+'<span class="cl-ch" aria-hidden="true"></span>';h.innerHTML="";h.appendChild(b);r.classList.add("fold");if(i===0)r.classList.add("open");b.addEventListener("click",function(){var o=r.classList.toggle("open");b.setAttribute("aria-expanded",o?"true":"false")})})})();</script>
 <script src="/group-hunt.js?v=1792902942"></script>
 <script src="/quotes.js?v=1796110000" defer></script>
+<script src="/paper-record-live.js?v=1" defer></script>
 </body>
 </html>

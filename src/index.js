@@ -144,6 +144,8 @@ async function route(request, env, ctx, url) {
   if (m === "POST" && p === "/api/contact") return contactUs(request, env);
   if (m === "POST" && p === "/api/apply") return applyFounder(request, env);
   if (m === "GET" && p === "/api/ledger/fingerprints") return ledgerFingerprints(env);
+  if (m === "GET" && p === "/api/paper/record") return paperRecord(request, env);
+  if (m === "OPTIONS" && p === "/api/paper/record") return new Response(null, { status: 204, headers: paperCors(request) });
   if (m === "GET" && p === "/api/voices") return listVoices(env);
   if (m === "POST" && p === "/api/voice") return speak(request, env, url);
   if ((mt = p.match(/^\/api\/pitch\/([A-Za-z0-9_-]{40,60})(?:\/(start|done|seg\/(\d{1,3})))?$/))) {
@@ -2722,4 +2724,63 @@ async function speak(request, env, url) {
   const res = new Response(await r.arrayBuffer(), { headers: { "content-type": "audio/mpeg", "cache-control": "public, max-age=2592000" } });
   await caches.default.put(cacheKey, res.clone());
   return res;
+}
+
+// ---------------------------------------------------------------- the paper's live record
+// Nov 27: public counts for the Stag Hunt paper (jonathanmanta.com/stag-hunt) and staghunts.com.
+// Counts only: no names, emails, deals or dollar amounts. Demo accounts and their sample deals
+// are left out, as in the paper's Table 7. Cached at the edge for 5 minutes.
+const PAPER_ORIGINS = ["https://jonathanmanta.com", "https://www.jonathanmanta.com", "https://staghunts.com", "https://www.staghunts.com"];
+
+function paperCors(request) {
+  const origin = request.headers.get("Origin") || "";
+  return PAPER_ORIGINS.includes(origin)
+    ? { "Access-Control-Allow-Origin": origin, "Vary": "Origin", "Access-Control-Allow-Methods": "GET, OPTIONS" }
+    : {};
+}
+
+async function paperRecord(request, env) {
+  const cache = caches.default;
+  const key = new Request("https://staghunts.com/api/paper/record");
+  let res = await cache.match(key);
+  if (!res) {
+    const row = await env.DB.prepare(`
+      WITH real_deals AS (
+        SELECT d.* FROM deals d JOIN users u ON u.id = d.poster_id
+        WHERE u.demo = 0 AND d.application_id IS NULL
+      ),
+      real_calls AS (
+        SELECT sc.* FROM scores sc JOIN users u ON u.id = sc.member_id JOIN real_deals d ON d.id = sc.deal_id
+        WHERE u.demo = 0
+      ),
+      stated AS (
+        SELECT DISTINCT s.user_id FROM investor_statements s JOIN users u ON u.id = s.user_id
+        WHERE u.demo = 0 AND s.basis <> 'none'
+      )
+      SELECT
+        (SELECT COUNT(*) FROM users WHERE demo = 0 AND status = 'active') AS members,
+        (SELECT COUNT(*) FROM stated) AS with_statement,
+        (SELECT COUNT(DISTINCT poster_id) FROM real_deals WHERE poster_id IN (SELECT user_id FROM stated)) AS sharers_with_statement,
+        (SELECT COUNT(*) FROM real_deals) AS deals_shared,
+        (SELECT COUNT(*) FROM real_deals d WHERE EXISTS
+           (SELECT 1 FROM real_calls c WHERE c.deal_id = d.id AND c.yes = 1 AND c.member_id <> d.poster_id)) AS deals_live,
+        (SELECT COUNT(*) FROM applications) AS founder_apps,
+        (SELECT COUNT(*) FROM real_calls) AS calls,
+        (SELECT COUNT(*) FROM (SELECT deal_id FROM real_calls GROUP BY deal_id HAVING COUNT(*) >= 3)) AS deals_3plus_calls,
+        (SELECT COUNT(*) FROM (SELECT deal_id FROM real_calls GROUP BY deal_id
+           HAVING COUNT(*) >= 3 AND SUM(yes) > 0 AND SUM(yes) < COUNT(*))) AS deals_split,
+        (SELECT COUNT(*) FROM investments i JOIN users u ON u.id = i.member_id JOIN real_deals d ON d.id = i.deal_id
+           WHERE u.demo = 0) AS investments,
+        (SELECT COUNT(*) FROM investments i JOIN users u ON u.id = i.member_id JOIN real_deals d ON d.id = i.deal_id
+           WHERE u.demo = 0 AND i.member_id <> d.poster_id) AS cross_investments,
+        (SELECT COUNT(*) FROM real_deals WHERE outcome IS NOT NULL) AS outcomes
+    `).first();
+    res = new Response(JSON.stringify({ as_of: new Date().toISOString(), baseline_date: "2026-11-26", ...row }), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=300" },
+    });
+    await cache.put(key, res.clone());
+  }
+  const out = new Response(res.body, res);
+  for (const [k, v] of Object.entries(paperCors(request))) out.headers.set(k, v);
+  return out;
 }
